@@ -1,19 +1,14 @@
 package com.github.slashmax.aabrowser;
 
-import android.content.ComponentName;
-import android.content.Context;
-import android.content.Intent;
 import android.content.SharedPreferences;
-import android.content.res.ColorStateList;
 import android.content.res.Configuration;
 import android.graphics.Bitmap;
 import android.graphics.Color;
-import android.net.http.SslError;
+import android.os.Build;
 import android.os.Bundle;
-import android.os.IBinder;
-import android.support.annotation.NonNull;
-import android.support.annotation.Nullable;
-import android.util.AttributeSet;
+import android.preference.PreferenceManager;
+import android.support.annotation.ColorInt;
+import android.support.annotation.ColorRes;
 import android.util.Log;
 import android.view.KeyEvent;
 import android.view.MotionEvent;
@@ -21,19 +16,11 @@ import android.view.View;
 import android.view.inputmethod.BaseInputConnection;
 import android.view.inputmethod.EditorInfo;
 import android.view.inputmethod.InputConnection;
-import android.webkit.ConsoleMessage;
-import android.webkit.HttpAuthHandler;
-import android.webkit.JsPromptResult;
-import android.webkit.JsResult;
-import android.webkit.SslErrorHandler;
 import android.webkit.WebChromeClient;
-import android.webkit.WebResourceError;
-import android.webkit.WebResourceRequest;
-import android.webkit.WebResourceResponse;
 import android.webkit.WebView;
 import android.webkit.WebViewClient;
 import android.widget.FrameLayout;
-import android.widget.ImageButton;
+import android.widget.ImageView;
 import android.widget.LinearLayout;
 
 import com.google.android.apps.auto.sdk.CarActivity;
@@ -73,14 +60,12 @@ public class MainCarActivity extends CarActivity implements CarEditable , View.O
     public void onCreate(Bundle bundle)
     {
         Log.d(TAG, "onCreate: " + (bundle != null ? bundle.toString() : "null"));
-
         setTheme(R.style.AppTheme);
         super.onCreate(bundle);
         setContentView(R.layout.activity_car_main);
 
-        setIgnoreConfigChanges(0xFFFF);//0x200
-
         InitCarUiController(getCarUiController());
+        setIgnoreConfigChanges(0xFFFF);
 
         InitWebChromeClient();
         InitWebViewClient();
@@ -88,8 +73,6 @@ public class MainCarActivity extends CarActivity implements CarEditable , View.O
         m_DefaultVideoPoster = Bitmap.createBitmap(1, 1, ALPHA_8);
 
         m_WebView = (WebView)findViewById(R.id.m_WebView);
-
-        m_WebView.setWebContentsDebuggingEnabled(false);
 
         m_WebView.getSettings().setJavaScriptEnabled(true);
 
@@ -114,9 +97,7 @@ public class MainCarActivity extends CarActivity implements CarEditable , View.O
         Log.d(TAG, "m_OriginalUserAgent: " + m_OriginalUserAgent);
 
         LoadSharedPreferences();
-
         UpdateConfiguration(getResources().getConfiguration());
-
         InitButtonsActions();
 
         if (bundle == null)
@@ -128,234 +109,75 @@ public class MainCarActivity extends CarActivity implements CarEditable , View.O
     {
         Log.d(TAG, "onDestroy");
         super.onDestroy();
-
-        m_WebView = null;
-        m_WebChromeClient = null;
-        m_WebViewClient = null;
-        m_DefaultVideoPoster = null;
     }
 
-    private void go(String url)
+    @Override
+    public void onRestoreInstanceState(Bundle bundle)
     {
-        Log.d(TAG, "go: " + url);
-        if (m_WebView != null)
-            m_WebView.loadUrl(url);
+        Log.d(TAG, "onRestoreInstanceState");
+        super.onRestoreInstanceState(bundle);
+        m_WebView.restoreState(bundle);
     }
 
-    private void goHome()
+    @Override
+    public void onSaveInstanceState(Bundle bundle)
     {
-        Log.d(TAG, "goHome");
-        go(m_HomeUrl);
+        Log.d(TAG, "onSaveInstanceState");
+        super.onSaveInstanceState(bundle);
+        m_WebView.saveState(bundle);
+        SaveSharedPreferences();
     }
 
-    private void goLast()
+    @Override
+    public void onStart()
     {
-        Log.d(TAG, "goCurrent");
-        if (m_LastUrl == null || m_LastUrl.isEmpty())
-            goHome();
-        else
-            go(m_LastUrl);
+        Log.d(TAG, "onStart");
+        super.onStart();
     }
 
-    private void doSearch(String query)
+    @Override
+    public void onStop()
     {
-        Log.d(TAG, "doSearch : " + (query != null ? query : "null"));
-        go(DEFAULT_SEARCH + query);
+        Log.d(TAG, "onStop");
+        super.onStop();
     }
 
-    private void InitWebChromeClient()
+    @Override
+    public void onPause()
     {
-        Log.d(TAG, "InitWebChromeClient");
-        m_WebChromeClient = new WebChromeClient()
-        {
-            @Override
-            public void onProgressChanged(WebView view, int newProgress)
-            {
-                Log.d(TAG, "onProgressChanged: " + newProgress);
-                super.onProgressChanged(view, newProgress);
-            }
-
-            @Override
-            public void onReceivedTitle(WebView view, String title)
-            {
-                Log.d(TAG, "onReceivedTitle: " + title);
-                super.onReceivedTitle(view, title);
-            }
-
-            @Override
-            public void onReceivedIcon(WebView view, Bitmap icon)
-            {
-                Log.d(TAG, "onReceivedIcon");
-                super.onReceivedIcon(view, icon);
-            }
-
-            @Override
-            public void onShowCustomView(View view, CustomViewCallback callback)
-            {
-                Log.d(TAG, "onShowCustomView");
-                FrameLayout m_Fullscreen = (FrameLayout) findViewById(R.id.m_Fullscreen);
-                if (m_Fullscreen != null)
-                {
-                    m_Fullscreen.addView(view);
-                    m_Fullscreen.setBackgroundColor(Color.BLACK);
-                    m_Fullscreen.bringToFront();
-                }
-            }
-
-            @Override
-            public void onHideCustomView()
-            {
-                Log.d(TAG, "onHideCustomView");
-                FrameLayout m_Fullscreen = (FrameLayout) findViewById(R.id.m_Fullscreen);
-                if (m_Fullscreen != null)
-                    m_Fullscreen.removeAllViewsInLayout();
-                LinearLayout m_MainLayout = (LinearLayout) findViewById(R.id.m_MainLayout);
-                if (m_MainLayout != null)
-                    m_MainLayout.bringToFront();
-            }
-
-            @Override
-            public void onRequestFocus(WebView view)
-            {
-                Log.d(TAG, "onRequestFocus");
-                super.onRequestFocus(view);
-            }
-
-            @Override
-            public boolean onJsAlert(WebView view, String url, String message, JsResult result)
-            {
-                Log.d(TAG, "onJsAlert: " + url + " message: " + message);
-                return super.onJsAlert(view, url, message, result);
-            }
-
-            @Override
-            public boolean onJsConfirm(WebView view, String url, String message, JsResult result)
-            {
-                Log.d(TAG, "onJsConfirm: " + url + " message: " + message);
-                return super.onJsConfirm(view, url, message, result);
-            }
-
-            @Override
-            public boolean onJsPrompt(WebView view, String url, String message, String defaultValue, JsPromptResult result)
-            {
-                Log.d(TAG, "onJsPrompt: " + url + " message: " + message);
-                return super.onJsPrompt(view, url, message, defaultValue, result);
-            }
-
-            @Override
-            public boolean onJsBeforeUnload(WebView view, String url, String message, JsResult result)
-            {
-                Log.d(TAG, "onJsBeforeUnload: " + url + " message: " + message);
-                return super.onJsBeforeUnload(view, url, message, result);
-            }
-
-            @Override
-            public boolean onConsoleMessage(ConsoleMessage consoleMessage)
-            {
-                if (consoleMessage != null)
-                    Log.d(TAG, "onConsoleMessage: " + consoleMessage.message() + " (" + consoleMessage.sourceId() + ":" + consoleMessage.lineNumber() + ")");
-                return super.onConsoleMessage(consoleMessage);
-            }
-
-            @Override
-            public Bitmap getDefaultVideoPoster()
-            {
-                Log.d(TAG, "getDefaultVideoPoster");
-                return m_DefaultVideoPoster;
-            }
-
-            @Override
-            public View getVideoLoadingProgressView()
-            {
-                Log.d(TAG, "getVideoLoadingProgressView");
-                return super.getVideoLoadingProgressView();
-            }
-        };
+        Log.d(TAG, "onPause");
+        super.onPause();
+        m_WebView.onPause();
     }
 
-    private void InitWebViewClient()
+    @Override
+    public void onResume()
     {
-        Log.d(TAG, "InitWebViewClient");
-        m_WebViewClient = new WebViewClient()
-        {
-            @Override
-            public boolean shouldOverrideUrlLoading(WebView view, WebResourceRequest request)
-            {
-                Log.d(TAG, "shouldOverrideUrlLoading");
-                return super.shouldOverrideUrlLoading(view, request);
-            }
+        Log.d(TAG, "onResume");
+        super.onResume();
+        m_WebView.onResume();
+    }
 
-            @Override
-            public void onPageStarted(WebView view, String url, Bitmap favicon)
-            {
-                Log.d(TAG, "onPageStarted: " + url);
-                super.onPageStarted(view, url, favicon);
-            }
+    @Override
+    public void onPostResume()
+    {
+        Log.d(TAG, "onPostResume");
+        super.onPostResume();
+    }
 
-            @Override
-            public void onPageFinished(WebView view, String url)
-            {
-                Log.d(TAG, "onPageFinished: " + url);
-                super.onPageFinished(view, url);
-            }
+    @Override
+    public void onWindowFocusChanged(boolean b, boolean b1)
+    {
+        Log.d(TAG, "onWindowFocusChanged");
+        super.onWindowFocusChanged(b, b1);
+    }
 
-            @Override
-            public void onReceivedError(WebView view, WebResourceRequest request, WebResourceError error)
-            {
-                if (request != null)
-                    Log.d(TAG, "onReceivedError: " + request.getUrl() + " (" + request.getMethod() + ")");
-                super.onReceivedError(view, request, error);
-            }
-
-            @Override
-            public void onReceivedHttpError(WebView view, WebResourceRequest request, WebResourceResponse errorResponse)
-            {
-                Log.d(TAG, "onReceivedHttpError: " + (errorResponse != null ? errorResponse.toString() : "null"));
-                super.onReceivedHttpError(view, request, errorResponse);
-            }
-
-            @Override
-            public void onReceivedSslError(WebView view, SslErrorHandler handler, SslError error)
-            {
-                Log.d(TAG, "onReceivedSslError: " + (error != null ? error.toString() : "null"));
-                super.onReceivedSslError(view, handler, error);
-            }
-
-            @Override
-            public void onReceivedHttpAuthRequest(WebView view, HttpAuthHandler handler, String host, String realm)
-            {
-                Log.d(TAG, "onReceivedHttpAuthRequest");
-                super.onReceivedHttpAuthRequest(view, handler, host, realm);
-            }
-
-            @Override
-            public boolean shouldOverrideKeyEvent(WebView view, KeyEvent event)
-            {
-                Log.d(TAG, "shouldOverrideKeyEvent: " + (event != null ? event.toString() : "null"));
-                return super.shouldOverrideKeyEvent(view, event);
-            }
-
-            @Override
-            public void onUnhandledKeyEvent(WebView view, KeyEvent event)
-            {
-                Log.d(TAG, "onUnhandledKeyEvent: " + (event != null ? event.toString() : "null"));
-                super.onUnhandledKeyEvent(view, event);
-            }
-
-            @Override
-            public void onScaleChanged(WebView view, float oldScale, float newScale)
-            {
-                Log.d(TAG, "onScaleChanged");
-                super.onScaleChanged(view, oldScale, newScale);
-            }
-
-            @Override
-            public void onReceivedLoginRequest(WebView view, String realm, String account, String args)
-            {
-                Log.d(TAG, "onReceivedLoginRequest");
-                super.onReceivedLoginRequest(view, realm, account, args);
-            }
-        };
+    @Override
+    public void onConfigurationChanged(Configuration configuration)
+    {
+        Log.d(TAG, "onConfigurationChanged: " + (configuration != null ? configuration.toString() : "null"));
+        super.onConfigurationChanged(configuration);
+        UpdateConfiguration(configuration);
     }
 
     private void InitCarUiController(CarUiController controller)
@@ -406,11 +228,65 @@ public class MainCarActivity extends CarActivity implements CarEditable , View.O
         });
     }
 
+    private void InitWebChromeClient()
+    {
+        Log.d(TAG, "InitWebChromeClient");
+        m_WebChromeClient = new WebChromeClient()
+        {
+            @Override
+            public void onReceivedTitle(WebView view, String title)
+            {
+                Log.d(TAG, "onReceivedTitle: " + title);
+                super.onReceivedTitle(view, title);
+            }
+
+            @Override
+            public void onReceivedIcon(WebView view, Bitmap icon)
+            {
+                Log.d(TAG, "onReceivedIcon");
+                super.onReceivedIcon(view, icon);
+            }
+
+            @Override
+            public void onShowCustomView(View view, CustomViewCallback callback)
+            {
+                Log.d(TAG, "onShowCustomView");
+                FrameLayout m_Fullscreen = (FrameLayout) findViewById(R.id.m_Fullscreen);
+                m_Fullscreen.setBackgroundColor(Color.BLACK);
+                m_Fullscreen.addView(view);
+                m_Fullscreen.bringToFront();
+            }
+
+            @Override
+            public void onHideCustomView()
+            {
+                Log.d(TAG, "onHideCustomView");
+                FrameLayout m_Fullscreen = (FrameLayout) findViewById(R.id.m_Fullscreen);
+                LinearLayout m_MainLayout = (LinearLayout) findViewById(R.id.m_MainLayout);
+                m_Fullscreen.removeAllViewsInLayout();
+                m_MainLayout.bringToFront();
+            }
+
+            @Override
+            public Bitmap getDefaultVideoPoster()
+            {
+                Log.d(TAG, "getDefaultVideoPoster");
+                return m_DefaultVideoPoster;
+            }
+        };
+    }
+
+    private void InitWebViewClient()
+    {
+        Log.d(TAG, "InitWebViewClient");
+        m_WebViewClient = new WebViewClient();
+    }
+
     private void InitButtonsActions()
     {
         Log.d(TAG, "InitButtonsActions");
 
-        ImageButton back = (ImageButton)findViewById(R.id.m_Back);
+        ImageView back = (ImageView)findViewById(R.id.m_Back);
         if (back != null)
             back.setOnClickListener(new View.OnClickListener() {
                 @Override
@@ -420,7 +296,7 @@ public class MainCarActivity extends CarActivity implements CarEditable , View.O
                 }
             });
 
-        ImageButton reload = (ImageButton)findViewById(R.id.m_Reload);
+        ImageView reload = (ImageView)findViewById(R.id.m_Reload);
         if (reload != null)
             reload.setOnClickListener(new View.OnClickListener() {
                 @Override
@@ -430,7 +306,7 @@ public class MainCarActivity extends CarActivity implements CarEditable , View.O
                 }
             });
 
-        ImageButton home = (ImageButton)findViewById(R.id.m_Home);
+        ImageView home = (ImageView)findViewById(R.id.m_Home);
         if (home != null)
             home.setOnClickListener(new View.OnClickListener() {
                 @Override
@@ -441,7 +317,7 @@ public class MainCarActivity extends CarActivity implements CarEditable , View.O
             });
 
 
-        ImageButton browse = (ImageButton)findViewById(R.id.m_Browse);
+        ImageView browse = (ImageView)findViewById(R.id.m_Browse);
         if (browse != null)
             browse.setOnClickListener(new View.OnClickListener() {
                 @Override
@@ -451,7 +327,7 @@ public class MainCarActivity extends CarActivity implements CarEditable , View.O
                 }
             });
 
-        ImageButton desktop =(ImageButton)findViewById(R.id.m_DesktopMode);
+        ImageView desktop =(ImageView)findViewById(R.id.m_DesktopMode);
         if (desktop != null)
             desktop.setOnClickListener(new View.OnClickListener() {
                 @Override
@@ -467,7 +343,7 @@ public class MainCarActivity extends CarActivity implements CarEditable , View.O
                 }
             });
 
-        ImageButton keyboard = (ImageButton)findViewById(R.id.m_Keyboard);
+        ImageView keyboard = (ImageView)findViewById(R.id.m_Keyboard);
         if (keyboard != null)
             keyboard.setOnClickListener(new View.OnClickListener() {
                 @Override
@@ -478,129 +354,40 @@ public class MainCarActivity extends CarActivity implements CarEditable , View.O
             });
     }
 
-    @Nullable
-    @Override
-    public View onCreateView(String s, @NonNull Context context, @NonNull AttributeSet attributeSet)
+    private void go(String url)
     {
-        Log.d(TAG, "onCreateView: " + s + " (" + (context != null ? context.toString() : "null") + ")");
-        return super.onCreateView(s, context, attributeSet);
+        Log.d(TAG, "go: " + url);
+        m_WebView.loadUrl(url);
     }
 
-    @Override
-    public View findViewById(int i)
+    private void goHome()
     {
-        Log.d(TAG, "findViewById: " + i);
-        return super.findViewById(i);
+        Log.d(TAG, "goHome");
+        go(m_HomeUrl);
     }
 
-    @Override
-    public boolean onKeyDown(int i, KeyEvent keyEvent)
+    private void goLast()
     {
-        Log.d(TAG, "onKeyDown: " + (keyEvent != null ? keyEvent.toString() : "null"));
-        return super.onKeyDown(i, keyEvent);
+        Log.d(TAG, "goCurrent");
+        if (m_LastUrl == null || m_LastUrl.isEmpty())
+            goHome();
+        else
+            go(m_LastUrl);
     }
 
-    @Override
-    public boolean onKeyLongPress(int i, KeyEvent keyEvent) {
-        Log.d(TAG, "onKeyLongPress: " + (keyEvent != null ? keyEvent.toString() : "null"));
-        return super.onKeyLongPress(i, keyEvent);
-    }
-
-    @Override
-    public boolean onKeyUp(int i, KeyEvent keyEvent) {
-        Log.d(TAG, "onKeyUp: " + (keyEvent != null ? keyEvent.toString() : "null"));
-        return super.onKeyUp(i, keyEvent);
-    }
-
-    @Override
-    public void onBackPressed()
+    private void doSearch(String query)
     {
-        Log.d(TAG, "onBackPressed");
-        super.onBackPressed();
+        Log.d(TAG, "doSearch : " + (query != null ? query : "null"));
+        go(DEFAULT_SEARCH + query);
     }
 
-    @Override
-    public void onNewIntent(Intent intent)
+    @ColorInt
+    private int getColorCompat(@ColorRes int id)
     {
-        Log.d(TAG, "onNewIntent: " + (intent != null ? intent.toString() : "null"));
-        super.onNewIntent(intent);
-    }
-
-    @Override
-    public void onRestoreInstanceState(Bundle bundle)
-    {
-        Log.d(TAG, "onRestoreInstanceState: " + (bundle != null ? bundle.toString() : "null"));
-        super.onRestoreInstanceState(bundle);
-        if(m_WebView != null && bundle != null)
-            m_WebView.restoreState(bundle);
-    }
-
-    @Override
-    public void onSaveInstanceState(Bundle bundle)
-    {
-        Log.d(TAG, "onSaveInstanceState: " + (bundle != null ? bundle.toString() : "null"));
-        super.onSaveInstanceState(bundle);
-        if(m_WebView != null && bundle != null)
-            m_WebView.saveState(bundle);
-
-        SaveSharedPreferences();
-    }
-
-    @Override
-    public void onStart()
-    {
-        Log.d(TAG, "onStart");
-        super.onStart();
-    }
-
-    @Override
-    public void onStop()
-    {
-        Log.d(TAG, "onStop");
-        super.onStop();
-    }
-
-    @Override
-    public void onPause()
-    {
-        Log.d(TAG, "onPause");
-        super.onPause();
-        if(m_WebView != null)
-            m_WebView.onPause();
-    }
-
-    @Override
-    public void onResume()
-    {
-        Log.d(TAG, "onResume");
-        super.onResume();
-        if(m_WebView != null)
-            m_WebView.onResume();
-    }
-
-    @Override
-    public void onPostResume()
-    {
-        Log.d(TAG, "onPostResume");
-        super.onPostResume();
-    }
-
-    @Override
-    public void onWindowFocusChanged(boolean b, boolean b1)
-    {
-        Log.d(TAG, "onWindowFocusChanged");
-        super.onWindowFocusChanged(b, b1);
-    }
-
-    private void SetImageButtonColorState(int buttonId, ColorStateList foreTint, ColorStateList backTint)
-    {
-        Log.d(TAG, "SetImageButtonColorState");
-        ImageButton button = (ImageButton)findViewById(buttonId);
-        if (button != null)
-        {
-            button.setForegroundTintList(foreTint);
-            button.setBackgroundTintList(backTint);
-        }
+        if (Build.VERSION.SDK_INT >= 23)
+            return getColor(id);
+        else
+            return getResources().getColor(id);
     }
 
     private void UpdateConfiguration(Configuration configuration)
@@ -609,124 +396,15 @@ public class MainCarActivity extends CarActivity implements CarEditable , View.O
             return;
 
         Log.d(TAG, "UpdateConfiguration: " + configuration.toString());
-
         int backgroundColor;
         if ((configuration.uiMode & Configuration.UI_MODE_NIGHT_MASK) == Configuration.UI_MODE_NIGHT_YES)
-            backgroundColor = getColor(R.color.colorCarBackgroundNight);
+            backgroundColor = getColorCompat(R.color.colorCarBackgroundNight);
         else
-            backgroundColor = getColor(R.color.colorCarBackgroundDay);
-
-        int textColor = getColor(R.color.colorCarText);
-
-        int[][] states = new int[][] {
-                new int[] { android.R.attr.state_enabled}, // enabled
-                new int[] {-android.R.attr.state_enabled}, // disabled
-                new int[] {-android.R.attr.state_checked}, // unchecked
-                new int[] { android.R.attr.state_pressed}  // pressed
-        };
-
-        int[] foreColors = new int[] {textColor, textColor, textColor, textColor};
-
-        int[] backColors = new int[] {backgroundColor, backgroundColor, backgroundColor, backgroundColor};
-
-        ColorStateList foreTint = new ColorStateList(states, foreColors);
-        ColorStateList backTint = new ColorStateList(states, backColors);
+            backgroundColor = getColorCompat(R.color.colorCarBackgroundDay);
 
         LinearLayout buttonsLayout = (LinearLayout)findViewById(R.id.m_ButtonsLayout);
         if (buttonsLayout != null)
             buttonsLayout.setBackgroundColor(backgroundColor);
-
-        SetImageButtonColorState(R.id.m_Back, foreTint, backTint);
-        SetImageButtonColorState(R.id.m_Reload, foreTint, backTint);
-        SetImageButtonColorState(R.id.m_Home, foreTint, backTint);
-        SetImageButtonColorState(R.id.m_Browse, foreTint, backTint);
-        SetImageButtonColorState(R.id.m_DesktopMode, foreTint, backTint);
-        SetImageButtonColorState(R.id.m_Keyboard, foreTint, backTint);
-    }
-
-    @Override
-    public void onConfigurationChanged(Configuration configuration)
-    {
-        Log.d(TAG, "onConfigurationChanged: " + (configuration != null ? configuration.toString() : "null"));
-        super.onConfigurationChanged(configuration);
-        UpdateConfiguration(configuration);
-    }
-
-    @Override
-    public void onLowMemory()
-    {
-        Log.d(TAG, "onLowMemory");
-        super.onLowMemory();
-    }
-
-    @Override
-    public void onFrameRateChange(int i)
-    {
-        Log.d(TAG, "onFrameRateChange: " + i);
-        super.onFrameRateChange(i);
-    }
-
-    @Override
-    public void onPowerStateChange(int i)
-    {
-        Log.d(TAG, "onPowerStateChange: " + i);
-        super.onPowerStateChange(i);
-    }
-
-    @Override
-    public Intent getIntent()
-    {
-        Log.d(TAG, "getIntent");
-        return super.getIntent();
-    }
-
-    @Override
-    public void setIntent(Intent intent)
-    {
-        Log.d(TAG, "setIntent: " + (intent != null ? intent.toString() : "null"));
-        super.setIntent(intent);
-    }
-
-    @Override
-    public void startCarActivity(Intent intent)
-    {
-        Log.d(TAG, "startCarActivity: " + (intent != null ? intent.toString() : "null"));
-        super.startCarActivity(intent);
-    }
-
-    @Override
-    public void onAccessibilityScanRequested(IBinder iBinder)
-    {
-        Log.d(TAG, "onAccessibilityScanRequested: " + (iBinder != null ? iBinder.toString() : "null"));
-        super.onAccessibilityScanRequested(iBinder);
-    }
-
-    @Override
-    public ComponentName startService(Intent service)
-    {
-        Log.d(TAG, "startService: " + (service != null ? service.toString() : "null"));
-        return super.startService(service);
-    }
-
-    @Override
-    public boolean stopService(Intent name)
-    {
-        Log.d(TAG, "stopService: " + (name != null ? name.toString() : "null"));
-        return super.stopService(name);
-    }
-
-    @Override
-    public Object getSystemService(String name)
-    {
-        Log.d(TAG, "getSystemService: " + name);
-        return super.getSystemService(name);
-    }
-
-    @Override
-    public String getSystemServiceName(Class<?> serviceClass)
-    {
-        Log.d(TAG, "getSystemServiceName: " + (serviceClass != null ? serviceClass.toString() : "null"));
-        return super.getSystemServiceName(serviceClass);
     }
 
     @Override
@@ -811,8 +489,7 @@ public class MainCarActivity extends CarActivity implements CarEditable , View.O
     {
         Log.d(TAG, "SetUserAgentIndex: " + index);
         m_UserAgentIndex = index;
-        ImageButton desktop =(ImageButton)findViewById(R.id.m_DesktopMode);
-
+        ImageView desktop =(ImageView)findViewById(R.id.m_DesktopMode);
         if (m_UserAgentIndex == 0)
         {
             m_WebView.getSettings().setUserAgentString(m_OriginalUserAgent);
@@ -829,7 +506,7 @@ public class MainCarActivity extends CarActivity implements CarEditable , View.O
     {
         Log.d(TAG, "LoadSharedPreferences");
 
-        SharedPreferences sharedPref = getSharedPreferences("com.github.slashmax.aabrowser.preferences", MODE_PRIVATE);
+        SharedPreferences sharedPref = PreferenceManager.getDefaultSharedPreferences(this);
         m_HomeUrl = sharedPref.getString("m_HomeUrl", DEFAULT_HOME);
         m_LastUrl = sharedPref.getString("m_LastUrl", DEFAULT_HOME);
         m_UserAgentIndex = sharedPref.getInt("m_UserAgentIndex", 0);
@@ -842,12 +519,11 @@ public class MainCarActivity extends CarActivity implements CarEditable , View.O
         Log.d(TAG, "SaveSharedPreferences");
 
         m_LastUrl = m_WebView.getUrl();
-
-        SharedPreferences sharedPref = getSharedPreferences("com.github.slashmax.aabrowser.preferences", MODE_PRIVATE);
+        SharedPreferences sharedPref = PreferenceManager.getDefaultSharedPreferences(this);
         SharedPreferences.Editor editor = sharedPref.edit();
         editor.putString("m_HomeUrl", m_HomeUrl);
         editor.putString("m_LastUrl", m_LastUrl);
         editor.putInt("m_UserAgentIndex", m_UserAgentIndex);
-        editor.commit();
+        editor.apply();
     }
 }

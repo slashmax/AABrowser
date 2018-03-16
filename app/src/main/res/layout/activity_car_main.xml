@@ -16,53 +16,47 @@
             android:layout_height="match_parent"
             android:orientation="vertical">
 
-            <ImageButton
+            <ImageView
                 android:id="@+id/m_Back"
                 android:layout_width="match_parent"
                 android:layout_height="66dp"
-                android:backgroundTint="@color/colorCarBackgroundDay"
-                android:src="@drawable/ic_arrow_back_black"
-                android:tint="@color/colorCarText" />
+                android:layout_gravity="center_horizontal"
+                android:src="@drawable/ic_arrow_back_black" />
 
-            <ImageButton
+            <ImageView
                 android:id="@+id/m_Reload"
                 android:layout_width="match_parent"
                 android:layout_height="66dp"
-                android:backgroundTint="@color/colorCarBackgroundDay"
-                android:src="@drawable/ic_refresh_black"
-                android:tint="@color/colorCarText" />
+                android:layout_gravity="center_horizontal"
+                android:src="@drawable/ic_refresh_black" />
 
-            <ImageButton
+            <ImageView
                 android:id="@+id/m_Home"
                 android:layout_width="match_parent"
                 android:layout_height="66dp"
-                android:backgroundTint="@color/colorCarBackgroundDay"
-                android:src="@drawable/ic_home_black"
-                android:tint="@color/colorCarText" />
+                android:layout_gravity="center_horizontal"
+                android:src="@drawable/ic_home_black" />
 
-            <ImageButton
+            <ImageView
                 android:id="@+id/m_Browse"
                 android:layout_width="match_parent"
                 android:layout_height="66dp"
-                android:backgroundTint="@color/colorCarBackgroundDay"
-                android:src="@drawable/ic_search_black"
-                android:tint="@color/colorCarText" />
+                android:layout_gravity="center_horizontal"
+                android:src="@drawable/ic_search_black" />
 
-            <ImageButton
+            <ImageView
                 android:id="@+id/m_DesktopMode"
                 android:layout_width="match_parent"
                 android:layout_height="66dp"
-                android:backgroundTint="@color/colorCarBackgroundDay"
-                android:src="@drawable/ic_tablet_android_black"
-                android:tint="@color/colorCarText" />
+                android:layout_gravity="center_horizontal"
+                android:src="@drawable/ic_tablet_android_black" />
 
-            <ImageButton
+            <ImageView
                 android:id="@+id/m_Keyboard"
                 android:layout_width="match_parent"
                 android:layout_height="66dp"
-                android:backgroundTint="@color/colorCarBackgroundDay"
-                android:src="@drawable/ic_keyboard_black"
-                android:tint="@color/colorCarText" />
+                android:layout_gravity="center_horizontal"
+                android:src="@drawable/ic_keyboard_black" />
 
         </LinearLayout>
 
