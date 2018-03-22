@@ -9,6 +9,10 @@ import android.os.Bundle;
 import android.preference.PreferenceManager;
 import android.support.annotation.ColorInt;
 import android.support.annotation.ColorRes;
+import android.support.car.Car;
+import android.support.car.CarConnectionCallback;
+import android.support.car.media.CarAudioManager;
+import android.support.v4.widget.DrawerLayout;
 import android.util.Log;
 import android.view.KeyEvent;
 import android.view.MotionEvent;
@@ -32,7 +36,10 @@ import com.google.android.gms.car.input.CarEditable;
 import com.google.android.gms.car.input.CarEditableListener;
 
 import static android.graphics.Bitmap.Config.ALPHA_8;
+import static android.media.AudioManager.AUDIOFOCUS_GAIN;
+import static android.support.car.media.CarAudioManager.CAR_AUDIO_USAGE_DEFAULT;
 import static android.view.MotionEvent.ACTION_UP;
+import static android.view.ViewGroup.LayoutParams.MATCH_PARENT;
 
 public class MainCarActivity extends CarActivity implements CarEditable , View.OnTouchListener
 {
@@ -44,6 +51,12 @@ public class MainCarActivity extends CarActivity implements CarEditable , View.O
     private static final String DEFAULT_LINUX_AGENT     = "Mozilla/5.0 (Linux;) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/63.0.3239.111 Safari/537.36";
     private static final String DEFAULT_WINDOWS_AGENT   = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/64.0.3282.71 Safari/537.36";
 
+    private Car             m_Car;
+
+    private DrawerLayout    m_DrawerLayout;
+    private LinearLayout    m_TaskBarDrawer;
+    private FrameLayout     m_Fullscreen;
+    private LinearLayout    m_WebViewLayout;
     private WebView         m_WebView;
     private WebChromeClient m_WebChromeClient;
     private WebViewClient   m_WebViewClient;
@@ -72,6 +85,10 @@ public class MainCarActivity extends CarActivity implements CarEditable , View.O
 
         m_DefaultVideoPoster = Bitmap.createBitmap(1, 1, ALPHA_8);
 
+        m_DrawerLayout = (DrawerLayout)findViewById(R.id.m_DrawerLayout);
+        m_TaskBarDrawer = (LinearLayout)findViewById(R.id.m_TaskBarDrawer);
+        m_Fullscreen = (FrameLayout)findViewById(R.id.m_Fullscreen);
+        m_WebViewLayout = (LinearLayout)findViewById(R.id.m_WebViewLayout);
         m_WebView = (WebView)findViewById(R.id.m_WebView);
 
         m_WebView.getSettings().setJavaScriptEnabled(true);
@@ -102,6 +119,24 @@ public class MainCarActivity extends CarActivity implements CarEditable , View.O
 
         if (bundle == null)
             goLast();
+
+        m_Car = Car.createCar(this, new CarConnectionCallback()
+        {
+            @Override
+            public void onConnected(Car car)
+            {
+                Log.d(TAG, "onConnected");
+                RequestAudioFocus();
+            }
+
+            @Override
+            public void onDisconnected(Car car)
+            {
+                Log.d(TAG, "onDisconnected");
+                AbandonAudioFocus();
+            }
+        });
+        m_Car.connect();
     }
 
     @Override
@@ -109,6 +144,9 @@ public class MainCarActivity extends CarActivity implements CarEditable , View.O
     {
         Log.d(TAG, "onDestroy");
         super.onDestroy();
+
+        if (m_Car.isConnected())
+            m_Car.disconnect();
     }
 
     @Override
@@ -251,20 +289,19 @@ public class MainCarActivity extends CarActivity implements CarEditable , View.O
             public void onShowCustomView(View view, CustomViewCallback callback)
             {
                 Log.d(TAG, "onShowCustomView");
-                FrameLayout m_Fullscreen = (FrameLayout) findViewById(R.id.m_Fullscreen);
                 m_Fullscreen.setBackgroundColor(Color.BLACK);
                 m_Fullscreen.addView(view);
                 m_Fullscreen.bringToFront();
+                m_TaskBarDrawer.bringToFront();
             }
 
             @Override
             public void onHideCustomView()
             {
                 Log.d(TAG, "onHideCustomView");
-                FrameLayout m_Fullscreen = (FrameLayout) findViewById(R.id.m_Fullscreen);
-                LinearLayout m_MainLayout = (LinearLayout) findViewById(R.id.m_MainLayout);
                 m_Fullscreen.removeAllViewsInLayout();
-                m_MainLayout.bringToFront();
+                m_WebViewLayout.bringToFront();
+                m_TaskBarDrawer.bringToFront();
             }
 
             @Override
@@ -303,6 +340,7 @@ public class MainCarActivity extends CarActivity implements CarEditable , View.O
                 public void onClick(View v) {
                     Log.d(TAG, "m_Reload.onClick");
                     m_WebView.reload();
+                    m_DrawerLayout.closeDrawers();
                 }
             });
 
@@ -313,6 +351,7 @@ public class MainCarActivity extends CarActivity implements CarEditable , View.O
                 public void onClick(View v) {
                     Log.d(TAG, "m_HomeUrl.onClick");
                     goHome();
+                    m_DrawerLayout.closeDrawers();
                 }
             });
 
@@ -324,6 +363,7 @@ public class MainCarActivity extends CarActivity implements CarEditable , View.O
                 public void onClick(View v) {
                     Log.d(TAG, "m_Browse.onClick");
                     getCarUiController().getSearchController().startSearch("");
+                    m_DrawerLayout.closeDrawers();
                 }
             });
 
@@ -350,6 +390,7 @@ public class MainCarActivity extends CarActivity implements CarEditable , View.O
                 public void onClick(View v) {
                     Log.d(TAG, "m_Keyboard.onClick");
                     startInput(m_WebView);
+                    m_DrawerLayout.closeDrawers();
                 }
             });
     }
@@ -402,23 +443,21 @@ public class MainCarActivity extends CarActivity implements CarEditable , View.O
         else
             backgroundColor = getColorCompat(R.color.colorCarBackgroundDay);
 
-        LinearLayout buttonsLayout = (LinearLayout)findViewById(R.id.m_ButtonsLayout);
-        if (buttonsLayout != null)
-            buttonsLayout.setBackgroundColor(backgroundColor);
+        m_TaskBarDrawer.setBackgroundColor(backgroundColor);
     }
 
     @Override
     public boolean onTouch(View v, MotionEvent event)
     {
-        Log.d(TAG, "onTouch: " + (event != null ? event.toString() : "null"));
         if (event != null && event.getAction() == ACTION_UP)
         {
             WebView.HitTestResult hitTest = m_WebView.getHitTestResult();
             if (hitTest != null && hitTest.getType() == WebView.HitTestResult.EDIT_TEXT_TYPE)
             {
-                if (event.getY() > 170)
+                m_WebView.getLayoutParams().height = 180;
+                m_WebView.requestLayout();
+                if (event.getY() > 180)
                     m_WebView.scrollBy(0, (int) event.getY() - 100);
-
                 startInput(m_WebView);
             }
             else
@@ -436,7 +475,6 @@ public class MainCarActivity extends CarActivity implements CarEditable , View.O
         InputConnection result = null;
         if (m_CurrentEditable != null)
         {
-            //leak ???
             result = new BaseInputConnection(m_CurrentEditable, false)
             {
                 public boolean sendKeyEvent(KeyEvent event)
@@ -483,6 +521,12 @@ public class MainCarActivity extends CarActivity implements CarEditable , View.O
         if (a().isInputActive())
             a().stopInput();
         m_CurrentEditable = null;
+
+        if (m_WebView.getLayoutParams().height != MATCH_PARENT)
+        {
+            m_WebView.getLayoutParams().height = MATCH_PARENT;
+            m_WebView.requestLayout();
+        }
     }
 
     private void SetUserAgentIndex(int index)
@@ -499,6 +543,34 @@ public class MainCarActivity extends CarActivity implements CarEditable , View.O
         {
             m_WebView.getSettings().setUserAgentString(DEFAULT_LINUX_AGENT);
             desktop.setImageDrawable(getDrawable(R.drawable.ic_desktop_windows_black));
+        }
+    }
+
+    private void RequestAudioFocus()
+    {
+        Log.d(TAG, "RequestAudioFocus");
+        try
+        {
+            CarAudioManager carAM = m_Car.getCarManager(CarAudioManager.class);
+            carAM.requestAudioFocus(null, carAM.getAudioAttributesForCarUsage(CAR_AUDIO_USAGE_DEFAULT), AUDIOFOCUS_GAIN, 0);
+        }
+        catch (Exception e)
+        {
+            Log.d(TAG, "RequestAudioFocus exception: " + e.toString());
+        }
+    }
+
+    private void AbandonAudioFocus()
+    {
+        Log.d(TAG, "AbandonAudioFocus");
+        try
+        {
+            CarAudioManager carAM = m_Car.getCarManager(CarAudioManager.class);
+            carAM.abandonAudioFocus(null, carAM.getAudioAttributesForCarUsage(CAR_AUDIO_USAGE_DEFAULT));
+        }
+        catch (Exception e)
+        {
+            Log.d(TAG, "AbandonAudioFocus exception: " + e.toString());
         }
     }
 
