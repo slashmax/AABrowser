@@ -6,6 +6,7 @@ import android.graphics.Bitmap;
 import android.graphics.Color;
 import android.os.Build;
 import android.os.Bundle;
+import android.os.Message;
 import android.preference.PreferenceManager;
 import android.support.annotation.ColorInt;
 import android.support.annotation.ColorRes;
@@ -20,6 +21,8 @@ import android.view.View;
 import android.view.inputmethod.BaseInputConnection;
 import android.view.inputmethod.EditorInfo;
 import android.view.inputmethod.InputConnection;
+import android.webkit.ConsoleMessage;
+import android.webkit.PermissionRequest;
 import android.webkit.WebChromeClient;
 import android.webkit.WebView;
 import android.webkit.WebViewClient;
@@ -48,8 +51,7 @@ public class MainCarActivity extends CarActivity implements CarEditable , View.O
     private static final String DEFAULT_HOME = "https://www.google.com";
     private static final String DEFAULT_SEARCH = "https://www.google.com/search?q=";
 
-    private static final String DEFAULT_LINUX_AGENT     = "Mozilla/5.0 (Linux;) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/63.0.3239.111 Safari/537.36";
-    private static final String DEFAULT_WINDOWS_AGENT   = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/64.0.3282.71 Safari/537.36";
+    private static final String DESKTOP_AGENT = "Mozilla/5.0 (Linux;) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/67.0.3396.87 Safari/537.36";
 
     private Car             m_Car;
 
@@ -147,6 +149,8 @@ public class MainCarActivity extends CarActivity implements CarEditable , View.O
 
         if (m_Car.isConnected())
             m_Car.disconnect();
+
+        SaveSharedPreferences();
     }
 
     @Override
@@ -302,6 +306,48 @@ public class MainCarActivity extends CarActivity implements CarEditable , View.O
                 m_Fullscreen.removeAllViewsInLayout();
                 m_WebViewLayout.bringToFront();
                 m_TaskBarDrawer.bringToFront();
+            }
+
+            @Override
+            public boolean onCreateWindow(WebView view, boolean isDialog, boolean isUserGesture, Message resultMsg)
+            {
+                Log.d(TAG, "onCreateWindow");
+                return super.onCreateWindow(view, isDialog, isUserGesture, resultMsg);
+            }
+
+            @Override
+            public void onRequestFocus(WebView view)
+            {
+                Log.d(TAG, "onRequestFocus");
+                super.onRequestFocus(view);
+            }
+
+            @Override
+            public void onCloseWindow(WebView window)
+            {
+                Log.d(TAG, "onCloseWindow");
+                super.onCloseWindow(window);
+            }
+
+            @Override
+            public void onPermissionRequest(PermissionRequest request)
+            {
+                Log.d(TAG, "onPermissionRequest");
+                super.onPermissionRequest(request);
+            }
+
+            @Override
+            public void onPermissionRequestCanceled(PermissionRequest request)
+            {
+                Log.d(TAG, "onPermissionRequestCanceled");
+                super.onPermissionRequestCanceled(request);
+            }
+
+            @Override
+            public boolean onConsoleMessage(ConsoleMessage consoleMessage)
+            {
+                Log.d(TAG, "onConsoleMessage");
+                return super.onConsoleMessage(consoleMessage);
             }
 
             @Override
@@ -541,7 +587,7 @@ public class MainCarActivity extends CarActivity implements CarEditable , View.O
         }
         else if (m_UserAgentIndex == 1)
         {
-            m_WebView.getSettings().setUserAgentString(DEFAULT_LINUX_AGENT);
+            m_WebView.getSettings().setUserAgentString(DESKTOP_AGENT);
             desktop.setImageDrawable(getDrawable(R.drawable.ic_desktop_windows_black));
         }
     }
