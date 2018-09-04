@@ -7,24 +7,29 @@
     android:layout_height="match_parent"
     tools:openDrawer="start">
 
-    <LinearLayout
-        android:id="@+id/m_WebViewLayout"
+    <com.github.slashmax.aabrowser.GoneFrameLayout
+        android:id="@+id/m_GoneFrameLayout"
         android:layout_width="match_parent"
-        android:layout_height="match_parent"
-        android:orientation="vertical" >
+        android:layout_height="match_parent">
 
-        <WebView
-            android:id="@+id/m_WebView"
+        <FrameLayout
+            android:id="@+id/m_WebViewFrameLayout"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent">
+
+            <WebView
+                android:id="@+id/m_WebView"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent" />
+
+        </FrameLayout>
+
+        <FrameLayout
+            android:id="@+id/m_CustomFrameLayout"
             android:layout_width="match_parent"
             android:layout_height="match_parent" />
 
-    </LinearLayout>
-
-    <FrameLayout
-        android:id="@+id/m_Fullscreen"
-        android:layout_width="match_parent"
-        android:layout_height="match_parent">
-    </FrameLayout>
+    </com.github.slashmax.aabrowser.GoneFrameLayout>
 
     <include
         android:id="@+id/m_TaskBarDrawer"

@@ -43,6 +43,7 @@ import static android.media.AudioManager.AUDIOFOCUS_GAIN;
 import static android.support.car.media.CarAudioManager.CAR_AUDIO_USAGE_DEFAULT;
 import static android.view.MotionEvent.ACTION_UP;
 import static android.view.ViewGroup.LayoutParams.MATCH_PARENT;
+import static android.webkit.WebSettings.MIXED_CONTENT_COMPATIBILITY_MODE;
 
 public class MainCarActivity extends CarActivity implements CarEditable , View.OnTouchListener
 {
@@ -51,14 +52,15 @@ public class MainCarActivity extends CarActivity implements CarEditable , View.O
     private static final String DEFAULT_HOME = "https://www.google.com";
     private static final String DEFAULT_SEARCH = "https://www.google.com/search?q=";
 
-    private static final String DESKTOP_AGENT = "Mozilla/5.0 (Linux;) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/67.0.3396.87 Safari/537.36";
+    //Mozilla/5.0 (Linux; Android 8.1.0; Android SDK built for x86 Build/OSM1.180201.007; wv) AppleWebKit/537.36 (KHTML, like Gecko) Version/4.0 Chrome/68.0.3440.91 Mobile Safari/537.36
+    private static final String DESKTOP_AGENT = "Mozilla/5.0 (X11; Linux) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/68.0.3440.91 Safari/537.36";
 
     private Car             m_Car;
 
     private DrawerLayout    m_DrawerLayout;
     private LinearLayout    m_TaskBarDrawer;
-    private FrameLayout     m_Fullscreen;
-    private LinearLayout    m_WebViewLayout;
+    private FrameLayout     m_CustomFrameLayout;
+    private FrameLayout     m_WebViewFrameLayout;
     private WebView         m_WebView;
     private WebChromeClient m_WebChromeClient;
     private WebViewClient   m_WebViewClient;
@@ -70,6 +72,8 @@ public class MainCarActivity extends CarActivity implements CarEditable , View.O
     private String          m_LastUrl;
     private String          m_OriginalUserAgent;
     private int             m_UserAgentIndex;
+
+    private View            m_CustomView;
 
     @Override
     public void onCreate(Bundle bundle)
@@ -89,11 +93,13 @@ public class MainCarActivity extends CarActivity implements CarEditable , View.O
 
         m_DrawerLayout = (DrawerLayout)findViewById(R.id.m_DrawerLayout);
         m_TaskBarDrawer = (LinearLayout)findViewById(R.id.m_TaskBarDrawer);
-        m_Fullscreen = (FrameLayout)findViewById(R.id.m_Fullscreen);
-        m_WebViewLayout = (LinearLayout)findViewById(R.id.m_WebViewLayout);
+        m_CustomFrameLayout = (FrameLayout)findViewById(R.id.m_CustomFrameLayout);
+        m_WebViewFrameLayout = (FrameLayout)findViewById(R.id.m_WebViewFrameLayout);
         m_WebView = (WebView)findViewById(R.id.m_WebView);
 
+//        m_WebView.setWebContentsDebuggingEnabled(true);
         m_WebView.getSettings().setJavaScriptEnabled(true);
+        m_WebView.getSettings().setMixedContentMode(MIXED_CONTENT_COMPATIBILITY_MODE);
 
         m_WebView.getSettings().setUseWideViewPort(true);
         m_WebView.getSettings().setLoadWithOverviewMode(true);
@@ -189,7 +195,6 @@ public class MainCarActivity extends CarActivity implements CarEditable , View.O
     {
         Log.d(TAG, "onPause");
         super.onPause();
-        m_WebView.onPause();
     }
 
     @Override
@@ -197,7 +202,6 @@ public class MainCarActivity extends CarActivity implements CarEditable , View.O
     {
         Log.d(TAG, "onResume");
         super.onResume();
-        m_WebView.onResume();
     }
 
     @Override
@@ -220,6 +224,27 @@ public class MainCarActivity extends CarActivity implements CarEditable , View.O
         Log.d(TAG, "onConfigurationChanged: " + (configuration != null ? configuration.toString() : "null"));
         super.onConfigurationChanged(configuration);
         UpdateConfiguration(configuration);
+    }
+
+    private void attachCustomView()
+    {
+        Log.d(TAG, "attachCustomView");
+        if (m_CustomView != null)
+        {
+            m_CustomFrameLayout.setBackgroundColor(Color.BLACK);
+            m_CustomFrameLayout.addView(m_CustomView);
+            m_CustomFrameLayout.bringToFront();
+            m_TaskBarDrawer.bringToFront();
+        }
+    }
+
+    private void detachCustomView()
+    {
+        Log.d(TAG, "detachCustomView");
+        if (m_CustomView != null)
+            m_CustomFrameLayout.removeView(m_CustomView);
+        m_WebViewFrameLayout.bringToFront();
+        m_TaskBarDrawer.bringToFront();
     }
 
     private void InitCarUiController(CarUiController controller)
@@ -293,19 +318,16 @@ public class MainCarActivity extends CarActivity implements CarEditable , View.O
             public void onShowCustomView(View view, CustomViewCallback callback)
             {
                 Log.d(TAG, "onShowCustomView");
-                m_Fullscreen.setBackgroundColor(Color.BLACK);
-                m_Fullscreen.addView(view);
-                m_Fullscreen.bringToFront();
-                m_TaskBarDrawer.bringToFront();
+                m_CustomView = view;
+                attachCustomView();
             }
 
             @Override
             public void onHideCustomView()
             {
                 Log.d(TAG, "onHideCustomView");
-                m_Fullscreen.removeAllViewsInLayout();
-                m_WebViewLayout.bringToFront();
-                m_TaskBarDrawer.bringToFront();
+                detachCustomView();
+                m_CustomView = null;
             }
 
             @Override
