@@ -53,7 +53,7 @@ public class MainCarActivity extends CarActivity implements CarEditable , View.O
     private static final String DEFAULT_SEARCH = "https://www.google.com/search?q=";
 
     //Mozilla/5.0 (Linux; Android 8.1.0; Android SDK built for x86 Build/OSM1.180201.007; wv) AppleWebKit/537.36 (KHTML, like Gecko) Version/4.0 Chrome/68.0.3440.91 Mobile Safari/537.36
-    private static final String DESKTOP_AGENT = "Mozilla/5.0 (X11; Linux) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/68.0.3440.91 Safari/537.36";
+    private static final String DESKTOP_AGENT = "Mozilla/5.0 (X11; Linux) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/69.0.3497.100 Safari/537.36";
 
     private Car             m_Car;
 
@@ -164,7 +164,6 @@ public class MainCarActivity extends CarActivity implements CarEditable , View.O
     {
         Log.d(TAG, "onRestoreInstanceState");
         super.onRestoreInstanceState(bundle);
-        m_WebView.restoreState(bundle);
     }
 
     @Override
@@ -172,8 +171,6 @@ public class MainCarActivity extends CarActivity implements CarEditable , View.O
     {
         Log.d(TAG, "onSaveInstanceState");
         super.onSaveInstanceState(bundle);
-        m_WebView.saveState(bundle);
-        SaveSharedPreferences();
     }
 
     @Override
@@ -305,6 +302,9 @@ public class MainCarActivity extends CarActivity implements CarEditable , View.O
             {
                 Log.d(TAG, "onReceivedTitle: " + title);
                 super.onReceivedTitle(view, title);
+
+                if (m_LastUrl == null || !m_LastUrl.equals(m_WebView.getUrl()))
+                    SaveSharedPreferences();
             }
 
             @Override
@@ -384,7 +384,22 @@ public class MainCarActivity extends CarActivity implements CarEditable , View.O
     private void InitWebViewClient()
     {
         Log.d(TAG, "InitWebViewClient");
-        m_WebViewClient = new WebViewClient();
+        m_WebViewClient = new WebViewClient()
+        {
+            @Override
+            public void onPageStarted(WebView view, String url, Bitmap favicon)
+            {
+                Log.d(TAG, "onPageStarted: " + (url != null ? url : "null"));
+                super.onPageStarted(view, url, favicon);
+            }
+
+            @Override
+            public void onPageFinished(WebView view, String url)
+            {
+                Log.d(TAG, "onPageFinished: " + (url != null ? url : "null"));
+                super.onPageFinished(view, url);
+            }
+        };
     }
 
     private void InitButtonsActions()
@@ -477,7 +492,7 @@ public class MainCarActivity extends CarActivity implements CarEditable , View.O
 
     private void goLast()
     {
-        Log.d(TAG, "goCurrent");
+        Log.d(TAG, "goLast");
         if (m_LastUrl == null || m_LastUrl.isEmpty())
             goHome();
         else
@@ -656,9 +671,8 @@ public class MainCarActivity extends CarActivity implements CarEditable , View.O
 
     private void SaveSharedPreferences()
     {
-        Log.d(TAG, "SaveSharedPreferences");
-
         m_LastUrl = m_WebView.getUrl();
+        Log.d(TAG, "SaveSharedPreferences : " + (m_LastUrl != null ? m_LastUrl : "null"));
         SharedPreferences sharedPref = PreferenceManager.getDefaultSharedPreferences(this);
         SharedPreferences.Editor editor = sharedPref.edit();
         editor.putString("m_HomeUrl", m_HomeUrl);

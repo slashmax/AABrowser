@@ -10,7 +10,7 @@ import android.widget.FrameLayout;
 
 public class GoneFrameLayout extends FrameLayout
 {
-    private static final String TAG = "AAFrameLayout";
+    private static final String TAG = "GoneFrameLayout";
 
     public GoneFrameLayout(@NonNull Context context)
     {
