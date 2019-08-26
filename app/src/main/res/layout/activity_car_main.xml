@@ -1,41 +1,103 @@
 <?xml version="1.0" encoding="utf-8"?>
-<android.support.v4.widget.DrawerLayout
+<com.github.slashmax.aabrowser.CarFrameLayout
     xmlns:android="http://schemas.android.com/apk/res/android"
-    xmlns:tools="http://schemas.android.com/tools"
-    android:id="@+id/m_DrawerLayout"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:id="@+id/m_AAFrameLayout"
     android:layout_width="match_parent"
-    android:layout_height="match_parent"
-    tools:openDrawer="start">
+    android:layout_height="match_parent">
 
-    <com.github.slashmax.aabrowser.GoneFrameLayout
-        android:id="@+id/m_GoneFrameLayout"
+    <android.support.design.widget.CoordinatorLayout
+        android:id="@+id/m_CoordinatorLayout"
         android:layout_width="match_parent"
         android:layout_height="match_parent">
 
-        <FrameLayout
-            android:id="@+id/m_WebViewFrameLayout"
+        <android.support.design.widget.AppBarLayout
+            android:id="@+id/m_AppBarLayout"
             android:layout_width="match_parent"
-            android:layout_height="match_parent">
+            android:layout_height="wrap_content">
 
-            <WebView
-                android:id="@+id/m_WebView"
+            <LinearLayout
                 android:layout_width="match_parent"
-                android:layout_height="match_parent" />
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:background="@android:color/background_dark"
+                app:layout_scrollFlags="scroll|enterAlways|snap">
 
-        </FrameLayout>
+                <ImageButton
+                    android:id="@+id/m_BackButton"
+                    android:layout_width="wrap_content"
+                    android:layout_height="match_parent"
+                    android:src="@drawable/ic_arrow_back_black_24dp"
+                    android:visibility="visible"/>
+                <ImageButton
+                    android:id="@+id/m_ForwardButton"
+                    android:layout_width="wrap_content"
+                    android:layout_height="match_parent"
+                    android:src="@drawable/ic_arrow_forward_black_24dp"
+                    android:visibility="gone"/>
+                <ImageButton
+                    android:id="@+id/m_ReloadButton"
+                    android:layout_width="wrap_content"
+                    android:layout_height="match_parent"
+                    android:src="@drawable/ic_refresh_black_24dp"
+                    android:visibility="gone"/>
+                <ImageButton
+                    android:id="@+id/m_HomeButton"
+                    android:layout_width="wrap_content"
+                    android:layout_height="match_parent"
+                    android:src="@drawable/ic_home_black_24dp"
+                    android:visibility="visible"/>
+                <com.github.slashmax.aabrowser.CarEditText
+                    android:id="@+id/m_UrlEditText"
+                    android:layout_width="0dp"
+                    android:layout_height="match_parent"
+                    android:layout_weight="1"
+                    android:layout_margin="6dp"
+                    android:background="#40ffffff"
+                    android:inputType="textUri"
+                    android:selectAllOnFocus="true"
+                    android:focusable="false"
+                    android:focusableInTouchMode="false"
+                    android:visibility="visible"/>
+                <ImageButton
+                    android:id="@+id/m_DesktopButton"
+                    android:layout_width="wrap_content"
+                    android:layout_height="match_parent"
+                    android:src="@drawable/ic_desktop_windows_black_24dp"
+                    android:visibility="visible"/>
+                <ImageButton
+                    android:id="@+id/m_LogButton"
+                    android:layout_width="wrap_content"
+                    android:layout_height="match_parent"
+                    android:src="@drawable/ic_chat_black_24dp"
+                    android:visibility="gone"/>
 
-        <FrameLayout
-            android:id="@+id/m_CustomFrameLayout"
+            </LinearLayout>
+
+        </android.support.design.widget.AppBarLayout>
+
+        <android.support.v4.widget.SwipeRefreshLayout
+            android:id="@+id/m_SwipeRefreshLayout"
             android:layout_width="match_parent"
-            android:layout_height="match_parent" />
+            android:layout_height="match_parent"
+            app:layout_behavior="@string/appbar_scrolling_view_behavior">
 
-    </com.github.slashmax.aabrowser.GoneFrameLayout>
+            <com.github.slashmax.aabrowser.CarWebView
+                android:id="@+id/m_AAWebView"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:focusable="true"
+                android:focusableInTouchMode="true"/>
 
-    <include
-        android:id="@+id/m_TaskBarDrawer"
-        layout="@layout/activity_car_taskbar"
-        android:layout_width="80dp"
+        </android.support.v4.widget.SwipeRefreshLayout>
+
+    </android.support.design.widget.CoordinatorLayout>
+
+    <FrameLayout
+        android:id="@+id/m_CustomViewGroup"
+        android:layout_width="match_parent"
         android:layout_height="match_parent"
-        android:layout_gravity="start" />
+        android:background="@android:color/black"
+        android:visibility="invisible"/>
 
-</android.support.v4.widget.DrawerLayout>
+</com.github.slashmax.aabrowser.CarFrameLayout>
