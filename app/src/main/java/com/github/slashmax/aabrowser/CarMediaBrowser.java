@@ -47,11 +47,11 @@ public class CarMediaBrowser
         m_Position = 0;
         m_Duration = 0;
         m_StateBuilder.setActions(ACTION_PLAY | ACTION_PAUSE | ACTION_SKIP_TO_NEXT | ACTION_SKIP_TO_PREVIOUS);
-        m_StateBuilder.setState(m_State, m_Position, 1);
+        m_StateBuilder.setState(m_State, m_Position * 1000, 1);
 
         m_MetaBuilder = new MediaMetadataCompat.Builder();
         m_MetaBuilder.putString(MediaMetadataCompat.METADATA_KEY_TITLE, m_Title);
-        m_MetaBuilder.putLong(MediaMetadataCompat.METADATA_KEY_DURATION, m_Duration);
+        m_MetaBuilder.putLong(MediaMetadataCompat.METADATA_KEY_DURATION, m_Duration * 1000);
     }
 
     void setCallback(MediaSessionCompat.Callback callback)
@@ -96,31 +96,41 @@ public class CarMediaBrowser
 
     public boolean setPlaybackState(int state)
     {
+        if (m_State == state)
+            return true;
         m_State = state;
-        m_StateBuilder.setState(m_State, m_Position, 1, SystemClock.elapsedRealtime());
+        m_StateBuilder.setState(m_State, m_Position * 1000, 1, SystemClock.elapsedRealtime());
         return setPlaybackState(m_StateBuilder.build());
     }
 
     public boolean setPlaybackPosition(long pos)
     {
-        m_Position = pos * 1000;
-        m_StateBuilder.setState(m_State, m_Position, 1, SystemClock.elapsedRealtime());
+        if (m_Position == pos)
+            return true;
+        m_Position = pos;
+        m_StateBuilder.setState(m_State, m_Position * 1000, 1, SystemClock.elapsedRealtime());
         return setPlaybackState(m_StateBuilder.build());
     }
 
     public boolean setPlaybackTitle(String title)
     {
+        if (title == null || m_Title.equals(title))
+            return true;
+
         m_Title = title;
         m_MetaBuilder.putString(MediaMetadataCompat.METADATA_KEY_TITLE, m_Title);
-        m_MetaBuilder.putLong(MediaMetadataCompat.METADATA_KEY_DURATION, m_Duration);
+        m_MetaBuilder.putLong(MediaMetadataCompat.METADATA_KEY_DURATION, m_Duration * 1000);
         return setMetadata(m_MetaBuilder.build());
     }
 
     public boolean setPlaybackDuration(long duration)
     {
-        m_Duration = duration * 1000;
+        if (m_Duration == duration)
+            return true;
+
+        m_Duration = duration;
         m_MetaBuilder.putString(MediaMetadataCompat.METADATA_KEY_TITLE, m_Title);
-        m_MetaBuilder.putLong(MediaMetadataCompat.METADATA_KEY_DURATION, m_Duration);
+        m_MetaBuilder.putLong(MediaMetadataCompat.METADATA_KEY_DURATION, m_Duration * 1000);
         return setMetadata(m_MetaBuilder.build());
     }
 

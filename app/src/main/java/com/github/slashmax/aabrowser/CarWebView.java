@@ -5,10 +5,12 @@ import android.content.Context;
 import android.content.SharedPreferences;
 import android.graphics.Bitmap;
 import android.graphics.Rect;
+import android.os.Build;
 import android.preference.PreferenceManager;
 import android.support.design.widget.AppBarLayout;
 import android.support.v4.media.session.MediaSessionCompat;
 import android.support.v4.widget.SwipeRefreshLayout;
+import android.util.ArrayMap;
 import android.util.AttributeSet;
 import android.util.Log;
 import android.view.KeyEvent;
@@ -22,10 +24,13 @@ import android.webkit.WebViewClient;
 import android.widget.ImageButton;
 import android.widget.TextView;
 
+import java.io.BufferedReader;
+import java.io.InputStream;
+import java.io.InputStreamReader;
+
 import static android.graphics.Bitmap.Config.ALPHA_8;
 import static android.support.v4.media.session.PlaybackStateCompat.STATE_PAUSED;
 import static android.support.v4.media.session.PlaybackStateCompat.STATE_PLAYING;
-import static android.support.v4.media.session.PlaybackStateCompat.STATE_STOPPED;
 import static android.webkit.WebSettings.MIXED_CONTENT_COMPATIBILITY_MODE;
 
 public class CarWebView
@@ -42,41 +47,43 @@ public class CarWebView
     private static final String DEFAULT_HOME = "https://www.google.com";
     private static final String DEFAULT_SEARCH = "https://www.google.com/search?q=";
 
-    private boolean             m_Moved;
+    private boolean                     m_Moved;
 
-    private CarInputManager     m_CarInputManager;
+    private CarInputManager             m_CarInputManager;
 
-    private CarFrameLayout      m_CarFrameLayout;
-    private AppBarLayout        m_AppBarLayout;
-    private SwipeRefreshLayout  m_SwipeRefreshLayout;
-    private ViewGroup           m_CustomViewGroup;
+    private CarFrameLayout              m_CarFrameLayout;
+    private AppBarLayout                m_AppBarLayout;
+    private SwipeRefreshLayout          m_SwipeRefreshLayout;
+    private ViewGroup                   m_CustomViewGroup;
 
-    private View                m_CustomView;
+    private View                        m_CustomView;
 
-    private ImageButton         m_BackButton;
-    private ImageButton         m_ForwardButton;
-    private ImageButton         m_ReloadButton;
-    private ImageButton         m_HomeButton;
-    private ImageButton         m_DesktopButton;
-    private ImageButton         m_LogButton;
-    private CarEditText         m_UrlEditText;
+    private ImageButton                 m_BackButton;
+    private ImageButton                 m_ForwardButton;
+    private ImageButton                 m_ReloadButton;
+    private ImageButton                 m_HomeButton;
+    private ImageButton                 m_DesktopButton;
+    private ImageButton                 m_LogButton;
+    private CarEditText                 m_UrlEditText;
 
-    private WebChromeClient     m_WebChromeClient;
-    private WebViewClient       m_WebViewClient;
-    private Bitmap              m_DefaultVideoPoster;
+    private WebChromeClient             m_WebChromeClient;
+    private WebViewClient               m_WebViewClient;
+    private Bitmap                      m_DefaultVideoPoster;
 
-    private String              m_HomeUrl;
-    private String              m_LastUrl;
+    private String                      m_HomeUrl;
+    private String                      m_LastUrl;
 
-    private String              m_UserAgentString;
-    private String              m_DesktopUserAgentString;
-    private boolean             m_DesktopUserAgent;
+    private String                      m_UserAgentString;
+    private String                      m_DesktopUserAgentString;
+    private boolean                     m_DesktopUserAgent;
 
-    private Runnable            m_AppBarLayoutHider;
+    private Runnable                    m_AppBarLayoutHider;
 
-    private CarMediaBrowser     m_CarMediaBrowser;
+    private CarMediaBrowser             m_CarMediaBrowser;
 
-    private static String       m_Log;
+    private ArrayMap<Integer,String>    m_Scripts;
+
+    private static String               m_Log;
 
     public CarWebView(Context context)
     {
@@ -123,6 +130,9 @@ public class CarWebView
         getSettings().setSupportZoom(true);
         getSettings().setBuiltInZoomControls(true);
         getSettings().setDisplayZoomControls(false);
+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O)
+            setRendererPriorityPolicy(RENDERER_PRIORITY_IMPORTANT, false);
 
         setFocusable(true);
         setFocusableInTouchMode(true);
@@ -180,6 +190,16 @@ public class CarWebView
         m_CarMediaBrowser = new CarMediaBrowser(getContext());
         m_CarMediaBrowser.setCallback(new MediaSessionCallback());
         m_CarMediaBrowser.onCreate();
+
+        m_Scripts = new ArrayMap<>();
+        readJavaScript(R.raw.media_play);
+        readJavaScript(R.raw.media_pause);
+        readJavaScript(R.raw.media_play_pause);
+        readJavaScript(R.raw.media_skip_to_start);
+        readJavaScript(R.raw.media_skip_to_end);
+
+        readJavaScript(R.raw.media_add_event_listener);
+        readJavaScript(R.raw.media_callbacks);
 
         addJavascriptInterface(new JavaScriptMediaCallbacks(), "m_JavaScriptMediaCallbacks");
         requestFocus();
@@ -343,7 +363,8 @@ public class CarWebView
             public void onProgressChanged(WebView view, int newProgress)
             {
                 super.onProgressChanged(view, newProgress);
-                addMediaEventListeners();
+                if (newProgress == 100)
+                    mediaAddEventListeners();
             }
 
             @Override
@@ -355,15 +376,14 @@ public class CarWebView
                     SaveSharedPreferences();
 
                 refreshAppBar();
-                addMediaEventListeners();
                 m_CarMediaBrowser.setPlaybackTitle(getTitle());
+                mediaAddEventListeners();
             }
 
             @Override
             public void onReceivedIcon(WebView view, Bitmap icon)
             {
                 super.onReceivedIcon(view, icon);
-                addMediaEventListeners();
             }
 
             @Override
@@ -396,7 +416,6 @@ public class CarWebView
             @Override
             public Bitmap getDefaultVideoPoster()
             {
-                addMediaEventListeners();
                 return m_DefaultVideoPoster;
             }
         };
@@ -415,7 +434,7 @@ public class CarWebView
                 if (m_SwipeRefreshLayout != null)
                     m_SwipeRefreshLayout.setRefreshing(true);
 
-                addMediaEventListeners();
+                mediaAddCallbacks();
             }
 
             @Override
@@ -427,7 +446,7 @@ public class CarWebView
                 if (m_SwipeRefreshLayout != null)
                     m_SwipeRefreshLayout.setRefreshing(false);
 
-                addMediaEventListeners();
+                mediaAddEventListeners();
             }
         };
     }
@@ -526,52 +545,80 @@ public class CarWebView
         reload();
     }
 
-    private void addMediaEventListeners()
+    private void readJavaScript(int id)
     {
-        loadUrl("javascript:var v = document.querySelector(\"video\"); if (v == null || v.paused) {onMediaPause();}");
+        m_Scripts.put(id, readRawResource(id));
+    }
 
-        loadUrl("javascript:function onMediaPlay()             {m_JavaScriptMediaCallbacks.onPlay()}");
-        loadUrl("javascript:function onMediaPause()            {m_JavaScriptMediaCallbacks.onPause()}");
-        loadUrl("javascript:function onMediaEnded()            {m_JavaScriptMediaCallbacks.onEnded()}");
-        loadUrl("javascript:function onMediaTimeUpdate()       {var v = document.querySelector(\"video\"); if (v != null) m_JavaScriptMediaCallbacks.onTimeUpdate(v.currentTime)}");
-        loadUrl("javascript:function onMediaDurationChange()   {var v = document.querySelector(\"video\"); if (v != null) m_JavaScriptMediaCallbacks.onDurationChange(v.getDuration())}");
+    private String readRawResource(int id)
+    {
+        StringBuilder builder = new StringBuilder();
+        InputStream inputStream = getResources().openRawResource(id);
+        InputStreamReader inputStreamReader = new InputStreamReader(inputStream);
+        BufferedReader bufferedReader = new BufferedReader(inputStreamReader);
+        try
+        {
+            for (;;)
+            {
+                String line = bufferedReader.readLine();
+                if (line == null)
+                    break;
 
-        loadUrl("javascript:var v = document.querySelector(\"video\"); if (v != null) {v.removeEventListener('play', onMediaPlay);}");
-        loadUrl("javascript:var v = document.querySelector(\"video\"); if (v != null) {v.removeEventListener('pause', onMediaPause);}");
-        loadUrl("javascript:var v = document.querySelector(\"video\"); if (v != null) {v.removeEventListener('ended', onMediaEnded);}");
-        loadUrl("javascript:var v = document.querySelector(\"video\"); if (v != null) {v.removeEventListener('timeupdate', onMediaTimeUpdate);}");
-        loadUrl("javascript:var v = document.querySelector(\"video\"); if (v != null) {v.removeEventListener('durationchange', onMediaDurationChange);}");
+                builder.append(line);
+                builder.append("\n");
+            }
+        }
+        catch (Exception e)
+        {
+            Log(TAG, "readRawResource exception : " + e.toString());
+        }
+        return builder.toString();
+    }
 
-        loadUrl("javascript:var v = document.querySelector(\"video\"); if (v != null) {v.addEventListener('play', onMediaPlay);}");
-        loadUrl("javascript:var v = document.querySelector(\"video\"); if (v != null) {v.addEventListener('pause', onMediaPause);}");
-        loadUrl("javascript:var v = document.querySelector(\"video\"); if (v != null) {v.addEventListener('ended', onMediaEnded);}");
-        loadUrl("javascript:var v = document.querySelector(\"video\"); if (v != null) {v.addEventListener('timeupdate', onMediaTimeUpdate);}");
-        loadUrl("javascript:var v = document.querySelector(\"video\"); if (v != null) {v.addEventListener('durationchange', onMediaDurationChange);}");
+    private void loadJavaScript(String javaScript)
+    {
+        if (javaScript != null)
+            loadUrl("javascript:" + javaScript);
+    }
+
+    private void loadJavaScript(int id)
+    {
+        loadJavaScript(m_Scripts.get(id));
+    }
+
+    private void mediaAddCallbacks()
+    {
+        loadJavaScript(R.raw.media_callbacks);
+    }
+
+    private void mediaAddEventListeners()
+    {
+        loadJavaScript(R.raw.media_add_event_listener);
     }
 
     private void mediaPlay()
     {
-        loadUrl("javascript:var v = document.querySelector(\"video\"); if (v != null) {v.play();}");
+        loadJavaScript(R.raw.media_play);
     }
 
     private void mediaPlayPause()
     {
-        loadUrl("javascript:var v = document.querySelector(\"video\"); if (v != null) {if (v.paused) v.play(); else v.pause();}");
+        loadJavaScript(R.raw.media_play_pause);
     }
 
     private void mediaPause()
     {
-        loadUrl("javascript:var v = document.querySelector(\"video\"); if (v != null) {v.pause();}");
+        loadJavaScript(R.raw.media_pause);
     }
 
     private void mediaSkipToStart()
     {
-        loadUrl("javascript:var v = document.querySelector(\"video\"); if (v != null) {v.currentTime = 0;}");
+        loadJavaScript(R.raw.media_skip_to_start);
     }
 
     private void mediaSkipToEnd()
     {
-        loadUrl("javascript:var v = document.querySelector(\"video\"); if (v != null) {if (v.currentTime > 0 && v.currentTime < v.getDuration()) v.currentTime = v.getDuration();}");
+        loadJavaScript(R.raw.media_skip_to_end);
     }
 
     private final class MediaSessionCallback extends MediaSessionCompat.Callback
@@ -607,7 +654,7 @@ public class CarWebView
         }
     }
 
-    private class JavaScriptMediaCallbacks
+    public class JavaScriptMediaCallbacks
     {
         @JavascriptInterface
         public void onPlay()
@@ -624,7 +671,7 @@ public class CarWebView
         @JavascriptInterface
         public void onEnded()
         {
-            m_CarMediaBrowser.setPlaybackState(STATE_STOPPED);
+            m_CarMediaBrowser.setPlaybackState(STATE_PAUSED);
         }
 
         @JavascriptInterface
