@@ -119,6 +119,9 @@ public class CarWebView
         InitWebChromeClient();
         InitWebViewClient();
 
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O)
+            getSettings().setOffscreenPreRaster(true);
+
         getSettings().setJavaScriptEnabled(true);
         getSettings().setMixedContentMode(MIXED_CONTENT_COMPATIBILITY_MODE);
 
@@ -192,14 +195,12 @@ public class CarWebView
         m_CarMediaBrowser.onCreate();
 
         m_Scripts = new ArrayMap<>();
+        readJavaScript(R.raw.media_functions);
+        readJavaScript(R.raw.media_events);
         readJavaScript(R.raw.media_play);
         readJavaScript(R.raw.media_pause);
-        readJavaScript(R.raw.media_play_pause);
-        readJavaScript(R.raw.media_skip_to_start);
-        readJavaScript(R.raw.media_skip_to_end);
-
-        readJavaScript(R.raw.media_add_event_listener);
-        readJavaScript(R.raw.media_callbacks);
+        readJavaScript(R.raw.media_skip_to_prev);
+        readJavaScript(R.raw.media_skip_to_next);
 
         addJavascriptInterface(new JavaScriptMediaCallbacks(), "m_JavaScriptMediaCallbacks");
         requestFocus();
@@ -364,7 +365,7 @@ public class CarWebView
             {
                 super.onProgressChanged(view, newProgress);
                 if (newProgress == 100)
-                    mediaAddEventListeners();
+                    mediaEvents();
             }
 
             @Override
@@ -377,7 +378,7 @@ public class CarWebView
 
                 refreshAppBar();
                 m_CarMediaBrowser.setPlaybackTitle(getTitle());
-                mediaAddEventListeners();
+                mediaEvents();
             }
 
             @Override
@@ -434,7 +435,7 @@ public class CarWebView
                 if (m_SwipeRefreshLayout != null)
                     m_SwipeRefreshLayout.setRefreshing(true);
 
-                mediaAddCallbacks();
+                mediaFunctions();
             }
 
             @Override
@@ -446,7 +447,7 @@ public class CarWebView
                 if (m_SwipeRefreshLayout != null)
                     m_SwipeRefreshLayout.setRefreshing(false);
 
-                mediaAddEventListeners();
+                mediaEvents();
             }
         };
     }
@@ -586,14 +587,14 @@ public class CarWebView
         loadJavaScript(m_Scripts.get(id));
     }
 
-    private void mediaAddCallbacks()
+    private void mediaFunctions()
     {
-        loadJavaScript(R.raw.media_callbacks);
+        loadJavaScript(R.raw.media_functions);
     }
 
-    private void mediaAddEventListeners()
+    private void mediaEvents()
     {
-        loadJavaScript(R.raw.media_add_event_listener);
+        loadJavaScript(R.raw.media_events);
     }
 
     private void mediaPlay()
@@ -601,24 +602,19 @@ public class CarWebView
         loadJavaScript(R.raw.media_play);
     }
 
-    private void mediaPlayPause()
-    {
-        loadJavaScript(R.raw.media_play_pause);
-    }
-
     private void mediaPause()
     {
         loadJavaScript(R.raw.media_pause);
     }
 
-    private void mediaSkipToStart()
+    private void mediaSkipToPrev()
     {
-        loadJavaScript(R.raw.media_skip_to_start);
+        loadJavaScript(R.raw.media_skip_to_prev);
     }
 
-    private void mediaSkipToEnd()
+    private void mediaSkipToNext()
     {
-        loadJavaScript(R.raw.media_skip_to_end);
+        loadJavaScript(R.raw.media_skip_to_next);
     }
 
     private final class MediaSessionCallback extends MediaSessionCompat.Callback
@@ -644,13 +640,13 @@ public class CarWebView
         @Override
         public void onSkipToPrevious()
         {
-            mediaPlayPause();
+            mediaSkipToPrev();
         }
 
         @Override
         public void onSkipToNext()
         {
-            mediaSkipToEnd();
+            mediaSkipToNext();
         }
     }
 
@@ -669,12 +665,6 @@ public class CarWebView
         }
 
         @JavascriptInterface
-        public void onEnded()
-        {
-            m_CarMediaBrowser.setPlaybackState(STATE_PAUSED);
-        }
-
-        @JavascriptInterface
         public void onTimeUpdate(int time)
         {
             m_CarMediaBrowser.setPlaybackPosition(time);
@@ -684,6 +674,12 @@ public class CarWebView
         public void onDurationChange(int duration)
         {
             m_CarMediaBrowser.setPlaybackDuration(duration);
+        }
+
+        @JavascriptInterface
+        public void onLog(String msg)
+        {
+            Log(TAG, msg);
         }
     }
 }

@@ -32,30 +32,18 @@ public class CarFrameLayout extends FrameLayout
     }
 
     @Override
-    protected void dispatchVisibilityChanged(View changedView, int visibility)
-    {
-        if (visibility != GONE)
-            super.dispatchVisibilityChanged(changedView, visibility);
-    }
-
-    @Override
     public void dispatchWindowVisibilityChanged(int visibility)
     {
-        if (visibility != GONE)
-            super.dispatchWindowVisibilityChanged(visibility);
+        if (visibility != VISIBLE)
+            return;
+        super.dispatchWindowVisibilityChanged(visibility);
     }
 
     @Override
-    protected void onVisibilityChanged(@NonNull View changedView, int visibility)
+    protected void dispatchVisibilityChanged(View changedView, int visibility)
     {
-        if (visibility != GONE)
-            super.onVisibilityChanged(changedView, visibility);
-    }
-
-    @Override
-    protected void onWindowVisibilityChanged(int visibility)
-    {
-        if (visibility != GONE)
-            super.onWindowVisibilityChanged(visibility);
+        if (visibility != VISIBLE)
+            return;
+        super.dispatchVisibilityChanged(changedView, visibility);
     }
 }
