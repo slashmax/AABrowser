@@ -17,7 +17,7 @@ public class NestedScrollWebView extends WebView implements NestedScrollingChild
     private static final String TAG = "NestedScrollWebView";
 
     private NestedScrollingChildHelper  m_NestedScrollingChildHelper;
-    private int                         m_PreviousYPosition;
+    private int                         m_LastMotionY;
 
     public NestedScrollWebView(Context context)
     {
@@ -41,51 +41,36 @@ public class NestedScrollWebView extends WebView implements NestedScrollingChild
     @Override
     public boolean onTouchEvent(MotionEvent event)
     {
-        boolean motionEventHandled;
-
         switch (event.getAction())
         {
             case MotionEvent.ACTION_DOWN:
-
+                m_LastMotionY = (int)event.getY();
                 startNestedScroll(ViewCompat.SCROLL_AXIS_VERTICAL);
-                m_PreviousYPosition = (int) event.getY();
-                motionEventHandled = super.onTouchEvent(event);
                 break;
 
             case MotionEvent.ACTION_MOVE:
-
-                int currentYMotionPosition = (int) event.getY();
-                int preScrollDeltaY = m_PreviousYPosition - currentYMotionPosition;
-                int[] consumedScroll = new int[2];
-                int[] offsetInWindow = new int[2];
-                int webViewYPosition = getScrollY();
-                int scrollDeltaY = preScrollDeltaY;
-
-                if (dispatchNestedPreScroll(0, preScrollDeltaY, consumedScroll, offsetInWindow))
+                int deltaY = m_LastMotionY - (int)event.getY();
+                if (deltaY != 0)
                 {
-                    scrollDeltaY = preScrollDeltaY - consumedScroll[1];
-                }
+                    int[] scrollConsumed = new int[2];
+                    int[] scrollOffset = new int[2];
+                    if (dispatchNestedPreScroll(0, deltaY, scrollConsumed, scrollOffset))
+                        deltaY -= scrollConsumed[1];
 
-                if ((webViewYPosition == 0) && (scrollDeltaY < 0))
-                {
-                    stopNestedScroll();
+                    if (deltaY != 0)
+                    {
+                        dispatchNestedScroll(0, deltaY, 0, 0, scrollOffset);
+                        m_LastMotionY -= deltaY;
+                    }
                 }
-                else
-                {
-                    startNestedScroll(ViewCompat.SCROLL_AXIS_VERTICAL);
-                    dispatchNestedScroll(0, scrollDeltaY, 0, 0, offsetInWindow);
-                    m_PreviousYPosition = m_PreviousYPosition - scrollDeltaY;
-                }
-
-                motionEventHandled = super.onTouchEvent(event);
                 break;
 
             default:
                 stopNestedScroll();
-                motionEventHandled = super.onTouchEvent(event);
+                break;
         }
 
-        return motionEventHandled;
+        return super.onTouchEvent(event);
     }
 
     private void init()

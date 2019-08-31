@@ -40,7 +40,7 @@
                     android:layout_width="wrap_content"
                     android:layout_height="match_parent"
                     android:src="@drawable/ic_refresh_black_24dp"
-                    android:visibility="gone"/>
+                    android:visibility="visible"/>
                 <ImageButton
                     android:id="@+id/m_HomeButton"
                     android:layout_width="wrap_content"

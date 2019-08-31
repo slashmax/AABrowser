@@ -1,7 +1,6 @@
 package com.github.slashmax.aabrowser;
 
 import android.os.Bundle;
-import android.view.KeyEvent;
 
 import com.google.android.apps.auto.sdk.CarActivity;
 

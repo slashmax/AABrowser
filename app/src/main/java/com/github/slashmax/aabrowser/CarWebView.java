@@ -122,6 +122,7 @@ public class CarWebView
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O)
             getSettings().setOffscreenPreRaster(true);
 
+//        setWebContentsDebuggingEnabled(true);
         getSettings().setJavaScriptEnabled(true);
         getSettings().setMixedContentMode(MIXED_CONTENT_COMPATIBILITY_MODE);
 
@@ -653,33 +654,33 @@ public class CarWebView
     public class JavaScriptMediaCallbacks
     {
         @JavascriptInterface
-        public void onPlay()
+        public void onMediaPlay()
         {
             m_CarMediaBrowser.setPlaybackState(STATE_PLAYING);
         }
 
         @JavascriptInterface
-        public void onPause()
+        public void onMediaPause()
         {
             m_CarMediaBrowser.setPlaybackState(STATE_PAUSED);
         }
 
         @JavascriptInterface
-        public void onTimeUpdate(int time)
+        public void onMediaTimeUpdate(int time)
         {
             m_CarMediaBrowser.setPlaybackPosition(time);
         }
 
         @JavascriptInterface
-        public void onDurationChange(int duration)
+        public void onMediaDurationChange(int duration)
         {
             m_CarMediaBrowser.setPlaybackDuration(duration);
         }
 
         @JavascriptInterface
-        public void onLog(String msg)
+        public void mediaLog(String msg)
         {
-            Log(TAG, msg);
+            Log.d(TAG, msg);
         }
     }
 }
