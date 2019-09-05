@@ -65,6 +65,7 @@ public class CarWebView
     private ImageButton                 m_DesktopButton;
     private ImageButton                 m_LogButton;
     private CarEditText                 m_UrlEditText;
+    private long                        m_MediaPrevTimestamp;
 
     private WebChromeClient             m_WebChromeClient;
     private WebViewClient               m_WebViewClient;
@@ -198,10 +199,6 @@ public class CarWebView
         m_Scripts = new ArrayMap<>();
         readJavaScript(R.raw.media_functions);
         readJavaScript(R.raw.media_events);
-        readJavaScript(R.raw.media_play);
-        readJavaScript(R.raw.media_pause);
-        readJavaScript(R.raw.media_skip_to_prev);
-        readJavaScript(R.raw.media_skip_to_next);
 
         addJavascriptInterface(new JavaScriptMediaCallbacks(), "m_JavaScriptMediaCallbacks");
         requestFocus();
@@ -600,22 +597,34 @@ public class CarWebView
 
     private void mediaPlay()
     {
-        loadJavaScript(R.raw.media_play);
+        loadJavaScript("mediaPlay();");
     }
 
     private void mediaPause()
     {
-        loadJavaScript(R.raw.media_pause);
+        loadJavaScript("mediaPause();");
     }
 
     private void mediaSkipToPrev()
     {
-        loadJavaScript(R.raw.media_skip_to_prev);
+        long currentTimeMillis = System.currentTimeMillis();
+
+        if (currentTimeMillis - m_MediaPrevTimestamp >  1000)
+        {
+            loadJavaScript("mediaPlayPause();");
+        }
+        else
+        {
+            loadJavaScript("mediaSeekToStart();");
+            loadJavaScript("mediaPlay();");
+        }
+
+        m_MediaPrevTimestamp = currentTimeMillis;
     }
 
     private void mediaSkipToNext()
     {
-        loadJavaScript(R.raw.media_skip_to_next);
+        loadJavaScript("mediaSeekToEnd();");
     }
 
     private final class MediaSessionCallback extends MediaSessionCompat.Callback

@@ -141,12 +141,12 @@ function mediaPlayPause()
     }
 }
 
-function mediaSkipToPrev()
+function mediaSeekToStart()
 {
-    mediaPlayPause();
+    mediaSeekTo(0);
 }
 
-function mediaSkipToNext()
+function mediaSeekToEnd()
 {
     var time = getMediaCurrentTime();
     var duration = getMediaDuration();
@@ -158,18 +158,35 @@ function onMediaInterval()
 {
     if (hasMedia())
     {
-        if (isMediaEnded())
+        if (isMediaPaused())
         {
-            var playNext = document.querySelector('a[aria-label="Play next video"]');
-            if (playNext != null)
-                playNext.click();
+            var playNextDiv = document.querySelector(".ytp-upnext");
+            if (playNextDiv != null && playNextDiv.style.display != "none")
+            {
+                var playNext = document.querySelector(".ytp-upnext-autoplay-icon");
+                if (playNext != null)
+                {
+                    playNext.click();
+                }
+            }
         }
 
-        if (isMediaPlaying() && (getMediaCurrentTime() < 10))
+        if (isMediaPlaying())
         {
-            var skipAd = document.querySelector(".ytp-ad-skip-button ");
+            var skipAd = document.querySelector(".ytp-ad-skip-button");
             if (skipAd != null)
-                skipAd.click();
+            {
+                mediaSeekToEnd();
+            }
+
+            var closeAd = document.querySelectorAll(".ytp-ad-overlay-close-button");
+            if (closeAd != null && closeAd.length > 0)
+            {
+                for (i = 0; i < closeAd.length; i++)
+                {
+                    closeAd[i].click();
+                }
+            }
         }
     }
 }
