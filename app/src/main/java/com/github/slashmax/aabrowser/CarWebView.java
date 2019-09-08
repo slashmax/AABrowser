@@ -31,6 +31,7 @@ import java.io.InputStreamReader;
 import static android.graphics.Bitmap.Config.ALPHA_8;
 import static android.support.v4.media.session.PlaybackStateCompat.STATE_PAUSED;
 import static android.support.v4.media.session.PlaybackStateCompat.STATE_PLAYING;
+import static android.support.v4.media.session.PlaybackStateCompat.STATE_STOPPED;
 import static android.webkit.WebSettings.MIXED_CONTENT_COMPATIBILITY_MODE;
 
 public class CarWebView
@@ -139,9 +140,6 @@ public class CarWebView
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O)
             setRendererPriorityPolicy(RENDERER_PRIORITY_IMPORTANT, false);
 
-        setFocusable(true);
-        setFocusableInTouchMode(true);
-
         setWebChromeClient(m_WebChromeClient);
         setWebViewClient(m_WebViewClient);
 
@@ -201,7 +199,6 @@ public class CarWebView
         readJavaScript(R.raw.media_events);
 
         addJavascriptInterface(new JavaScriptMediaCallbacks(), "m_JavaScriptMediaCallbacks");
-        requestFocus();
         LoadSharedPreferences();
         goLast();
     }
@@ -246,9 +243,6 @@ public class CarWebView
             removeCheckIsTextEditor();
             stopInput();
         }
-
-        m_UrlEditText.setFocusable(true);
-        m_UrlEditText.setFocusableInTouchMode(true);
     }
 
     @Override
@@ -374,8 +368,8 @@ public class CarWebView
                 if (m_LastUrl == null || !m_LastUrl.equals(getUrl()))
                     SaveSharedPreferences();
 
+                m_CarMediaBrowser.setPlaybackTitle(title);
                 refreshAppBar();
-                m_CarMediaBrowser.setPlaybackTitle(getTitle());
                 mediaEvents();
             }
 
@@ -434,6 +428,7 @@ public class CarWebView
                     m_SwipeRefreshLayout.setRefreshing(true);
 
                 mediaFunctions();
+                requestFocus();
             }
 
             @Override
@@ -446,6 +441,7 @@ public class CarWebView
                     m_SwipeRefreshLayout.setRefreshing(false);
 
                 mediaEvents();
+                requestFocus();
             }
         };
     }
@@ -475,7 +471,7 @@ public class CarWebView
     @Override
     public void run()
     {
-        if (!isFocused())
+        if (!hasFocus())
             return;
 
         if (onCheckIsTextEditor())
@@ -663,33 +659,33 @@ public class CarWebView
     public class JavaScriptMediaCallbacks
     {
         @JavascriptInterface
-        public void onMediaPlay()
+        public void onMediaPlay(float time)
         {
-            m_CarMediaBrowser.setPlaybackState(STATE_PLAYING);
+            m_CarMediaBrowser.setPlaybackState(STATE_PLAYING, time);
         }
 
         @JavascriptInterface
-        public void onMediaPause()
+        public void onMediaPause(float time)
         {
-            m_CarMediaBrowser.setPlaybackState(STATE_PAUSED);
+            m_CarMediaBrowser.setPlaybackState(STATE_PAUSED, time);
         }
 
         @JavascriptInterface
-        public void onMediaTimeUpdate(int time)
+        public void onMediaStop(float time)
+        {
+            m_CarMediaBrowser.setPlaybackState(STATE_STOPPED, time);
+        }
+
+        @JavascriptInterface
+        public void onMediaTimeUpdate(float time)
         {
             m_CarMediaBrowser.setPlaybackPosition(time);
         }
 
         @JavascriptInterface
-        public void onMediaDurationChange(int duration)
+        public void onMediaDurationChange(float duration)
         {
             m_CarMediaBrowser.setPlaybackDuration(duration);
-        }
-
-        @JavascriptInterface
-        public void mediaLog(String msg)
-        {
-            Log.d(TAG, msg);
         }
     }
 }

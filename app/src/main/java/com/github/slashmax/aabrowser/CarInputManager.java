@@ -24,7 +24,7 @@ public class CarInputManager implements CarEditable
         return m_InputManager != null && m_InputManager.isCurrentCarEditable(carEditable);
     }
 
-    public boolean isInputActive()
+    boolean isInputActive()
     {
         return m_InputManager != null && m_InputManager.isInputActive();
     }
@@ -34,7 +34,7 @@ public class CarInputManager implements CarEditable
         return m_InputManager != null && m_InputManager.isValid();
     }
 
-    public void startInput(View TargetView)
+    void startInput(View TargetView)
     {
         if (!isInputActive())
         {
@@ -43,7 +43,7 @@ public class CarInputManager implements CarEditable
         }
     }
 
-    public void stopInput()
+    void stopInput()
     {
         if (isInputActive())
         {

@@ -1,5 +1,6 @@
 package com.github.slashmax.aabrowser;
 
+import android.app.Notification;
 import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
@@ -31,13 +32,16 @@ public class CarMediaService extends MediaBrowserServiceCompat
 
     private static final String TAG = "CarMediaService";
 
-    private BroadcastReceiver   m_LocalIntentReceiver;
-    private MediaSessionCompat  m_MediaSessionCompat;
+    private CarMediaNotificationManager m_CarMediaNotificationManager;
+    private BroadcastReceiver           m_LocalIntentReceiver;
+    private MediaSessionCompat          m_MediaSessionCompat;
 
     @Override
     public void onCreate()
     {
         super.onCreate();
+
+        m_CarMediaNotificationManager = new CarMediaNotificationManager(this);
 
         m_LocalIntentReceiver = new BroadcastReceiver()
         {
@@ -46,18 +50,29 @@ public class CarMediaService extends MediaBrowserServiceCompat
             {
                 if (intent != null && intent.getAction() != null && intent.getAction().equals(LOCAL_INTENT_FILTER))
                 {
+                    boolean update = false;
                     if (intent.hasExtra("PlaybackStateCompat"))
                     {
                         PlaybackStateCompat playbackStateCompat = intent.getParcelableExtra("PlaybackStateCompat");
                         if (playbackStateCompat != null && m_MediaSessionCompat != null)
+                        {
+                            if (playbackStateCompat.getState() != m_MediaSessionCompat.getController().getPlaybackState().getState())
+                                update = true;
                             m_MediaSessionCompat.setPlaybackState(playbackStateCompat);
+                        }
                     }
                     if (intent.hasExtra("MediaMetadataCompat"))
                     {
                         MediaMetadataCompat mediaMetadataCompat = intent.getParcelableExtra("MediaMetadataCompat");
                         if (mediaMetadataCompat != null && m_MediaSessionCompat != null)
+                        {
+                            if (mediaMetadataCompat.getDescription().getTitle() != m_MediaSessionCompat.getController().getMetadata().getDescription().getTitle())
+                                update = true;
                             m_MediaSessionCompat.setMetadata(mediaMetadataCompat);
+                        }
                     }
+                    if (update)
+                        updateNotification();
                 }
             }
         };
@@ -76,6 +91,10 @@ public class CarMediaService extends MediaBrowserServiceCompat
 
         MediaMetadataCompat.Builder metaBuilder = new MediaMetadataCompat.Builder();
         m_MediaSessionCompat.setMetadata(metaBuilder.build());
+
+        Notification notification = getNotification();
+        if (notification != null)
+            startForeground(CarMediaNotificationManager.NOTIFICATION_ID, notification);
     }
 
     @Override
@@ -84,19 +103,17 @@ public class CarMediaService extends MediaBrowserServiceCompat
         super.onDestroy();
         m_MediaSessionCompat.release();
         LocalBroadcastManager.getInstance(this).unregisterReceiver(m_LocalIntentReceiver);
+        stopForeground(true);
     }
 
     @Override
-    public BrowserRoot onGetRoot(@NonNull String clientPackageName,
-                                 int clientUid,
-                                 Bundle rootHints)
+    public BrowserRoot onGetRoot(@NonNull String clientPackageName, int clientUid, Bundle rootHints)
     {
         return new BrowserRoot("root", null);
     }
 
     @Override
-    public void onLoadChildren(@NonNull final String parentMediaId,
-                               @NonNull final Result<List<MediaItem>> result)
+    public void onLoadChildren(@NonNull final String parentMediaId, @NonNull final Result<List<MediaItem>> result)
     {
         result.sendResult(new ArrayList<MediaItem>());
     }
@@ -144,5 +161,20 @@ public class CarMediaService extends MediaBrowserServiceCompat
         {
             broadcastPlaybackAction(ACTION_SKIP_TO_NEXT);
         }
+    }
+
+    public Notification getNotification()
+    {
+        if (m_MediaSessionCompat == null || m_CarMediaNotificationManager == null)
+            return null;
+
+        return m_CarMediaNotificationManager.getNotification(m_MediaSessionCompat.getController().getMetadata(),
+                m_MediaSessionCompat.getController().getPlaybackState(), getSessionToken());
+    }
+    private void updateNotification()
+    {
+        Notification notification = getNotification();
+        if (notification != null && m_CarMediaNotificationManager != null)
+            m_CarMediaNotificationManager.notify(notification);
     }
 }

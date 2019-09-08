@@ -5,4 +5,9 @@
     <string name="notification_channel_description">Android Auto Browser Notification</string>
     <string name="notification_title">AA Browser running</string>
     <string name="notification_text">Tap to stop</string>
+
+    <string name="label_play">Play</string>
+    <string name="label_pause">Pause</string>
+    <string name="label_previous">Previous track</string>
+    <string name="label_next">Next track</string>
 </resources>

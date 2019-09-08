@@ -9,6 +9,7 @@ import android.content.Context;
 import android.content.Intent;
 import android.os.Build;
 import android.os.IBinder;
+import android.util.Log;
 
 public class ForegroundService extends Service
 {
@@ -79,7 +80,7 @@ public class ForegroundService extends Service
             Notification notification = builder
                     .setContentTitle(getText(R.string.notification_title))
                     .setContentText(getText(R.string.notification_text))
-                    .setSmallIcon(R.drawable.ic_launcher_foreground)
+                    .setSmallIcon(R.mipmap.ic_launcher)
                     .setContentIntent(pendingIntent)
                     .setShowWhen(true)
                     .setPriority(Notification.PRIORITY_LOW)
@@ -89,6 +90,7 @@ public class ForegroundService extends Service
         }
         catch (Exception e)
         {
+            Log.d(TAG, "startNotification exception : " + e.toString());
         }
     }
 
@@ -107,6 +109,7 @@ public class ForegroundService extends Service
         }
         catch (Exception e)
         {
+            Log.d(TAG, "stopNotification exception : " + e.toString());
         }
     }
 

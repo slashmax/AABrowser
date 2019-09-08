@@ -26,11 +26,6 @@ public class CarFrameLayout extends FrameLayout
         super(context, attrs, defStyleAttr);
     }
 
-    public CarFrameLayout(Context context, AttributeSet attrs, int defStyleAttr, int defStyleRes)
-    {
-        super(context, attrs, defStyleAttr, defStyleRes);
-    }
-
     @Override
     public void dispatchWindowVisibilityChanged(int visibility)
     {

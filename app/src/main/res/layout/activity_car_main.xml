@@ -56,8 +56,8 @@
                     android:background="#40ffffff"
                     android:inputType="textUri"
                     android:selectAllOnFocus="true"
-                    android:focusable="false"
-                    android:focusableInTouchMode="false"
+                    android:focusable="true"
+                    android:focusableInTouchMode="true"
                     android:visibility="visible"/>
                 <ImageButton
                     android:id="@+id/m_DesktopButton"

@@ -11,7 +11,7 @@ function hasMedia()
 function isMediaPlaying()
 {
     var media = getMedia();
-    return (media != null && !isMediaPaused() && !isMediaEnded());
+    return (media != null && !isMediaPaused() && !isMediaStopped());
 }
 
 function isMediaPaused()
@@ -20,7 +20,7 @@ function isMediaPaused()
     return (media == null || media.paused);
 }
 
-function isMediaEnded()
+function isMediaStopped()
 {
     var media = getMedia();
     return (media == null || media.ended);
@@ -53,12 +53,17 @@ function mediaSeekTo(time)
 
 function onMediaPlay()
 {
-    m_JavaScriptMediaCallbacks.onMediaPlay();
+    m_JavaScriptMediaCallbacks.onMediaPlay(getMediaCurrentTime());
 }
 
 function onMediaPause()
 {
-    m_JavaScriptMediaCallbacks.onMediaPause();
+    m_JavaScriptMediaCallbacks.onMediaPause(getMediaCurrentTime());
+}
+
+function onMediaStop()
+{
+    m_JavaScriptMediaCallbacks.onMediaStop(getMediaCurrentTime());
 }
 
 function onMediaTimeUpdate()
@@ -69,11 +74,6 @@ function onMediaTimeUpdate()
 function onMediaDurationChange()
 {
     m_JavaScriptMediaCallbacks.onMediaDurationChange(getMediaDuration());
-}
-
-function mediaLog(msg)
-{
-    m_JavaScriptMediaCallbacks.mediaLog("MediaLog : " + msg);
 }
 
 var mediaInterval = null;
@@ -101,13 +101,13 @@ function mediaSetEventListener()
     {
         media.removeEventListener('play', onMediaPlay);
         media.removeEventListener('pause', onMediaPause);
-        media.removeEventListener('ended', onMediaPause);
+        media.removeEventListener('ended', onMediaStop);
         media.removeEventListener('timeupdate', onMediaTimeUpdate);
         media.removeEventListener('durationchange', onMediaDurationChange);
 
         media.addEventListener('play', onMediaPlay);
         media.addEventListener('pause', onMediaPause);
-        media.addEventListener('ended', onMediaPause);
+        media.addEventListener('ended', onMediaStop);
         media.addEventListener('timeupdate', onMediaTimeUpdate);
         media.addEventListener('durationchange', onMediaDurationChange);
         setMediaInterval();

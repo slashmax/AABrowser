@@ -5,6 +5,7 @@ import android.graphics.Color;
 import android.support.car.Car;
 import android.support.car.CarConnectionCallback;
 import android.support.car.media.CarAudioManager;
+import android.util.Log;
 
 import com.google.android.apps.auto.sdk.CarUiController;
 import com.google.android.apps.auto.sdk.DayNightStyle;
@@ -14,13 +15,13 @@ import com.google.android.apps.auto.sdk.SearchItem;
 import static android.media.AudioManager.AUDIOFOCUS_GAIN;
 import static android.support.car.media.CarAudioManager.CAR_AUDIO_USAGE_DEFAULT;
 
-public class CarController
+class CarController
 {
     private static final String TAG = "CarController";
 
     private Car m_Car;
 
-    public void onCreate(Context context)
+    void onCreate(Context context)
     {
         m_Car = Car.createCar(context, new CarConnectionCallback()
         {
@@ -39,13 +40,13 @@ public class CarController
         m_Car.connect();
     }
 
-    public void onDestroy()
+    void onDestroy()
     {
         if (m_Car.isConnected())
             m_Car.disconnect();
     }
 
-    public void InitCarUiController(CarUiController controller)
+    void InitCarUiController(CarUiController controller)
     {
         controller.getStatusBarController().setTitle("");
         controller.getStatusBarController().hideAppHeader();
@@ -83,6 +84,7 @@ public class CarController
         }
         catch (Exception e)
         {
+            Log.d(TAG, "RequestAudioFocus exception : " + e.toString());
         }
     }
 
@@ -95,6 +97,7 @@ public class CarController
         }
         catch (Exception e)
         {
+            Log.d(TAG, "AbandonAudioFocus exception : " + e.toString());
         }
     }
 }

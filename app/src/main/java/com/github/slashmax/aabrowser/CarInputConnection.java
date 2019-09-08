@@ -1,10 +1,11 @@
 package com.github.slashmax.aabrowser;
 
-
+import android.os.Build;
 import android.os.Bundle;
 import android.os.Handler;
 import android.support.annotation.NonNull;
 import android.support.annotation.Nullable;
+import android.support.annotation.RequiresApi;
 import android.view.KeyEvent;
 import android.view.inputmethod.CompletionInfo;
 import android.view.inputmethod.CorrectionInfo;
@@ -62,6 +63,7 @@ public class CarInputConnection implements InputConnection
         return m_InputConnection.deleteSurroundingText(beforeLength, afterLength);
     }
 
+    @RequiresApi(Build.VERSION_CODES.N)
     @Override
     public boolean deleteSurroundingTextInCodePoints(int beforeLength, int afterLength)
     {
@@ -167,18 +169,21 @@ public class CarInputConnection implements InputConnection
         return m_InputConnection.requestCursorUpdates(cursorUpdateMode);
     }
 
+    @RequiresApi(Build.VERSION_CODES.N)
     @Override
     public Handler getHandler()
     {
         return m_InputConnection.getHandler();
     }
 
+    @RequiresApi(Build.VERSION_CODES.N)
     @Override
     public void closeConnection()
     {
         m_InputConnection.closeConnection();
     }
 
+    @RequiresApi(Build.VERSION_CODES.N_MR1)
     @Override
     public boolean commitContent(@NonNull InputContentInfo inputContentInfo, int flags, @Nullable Bundle opts)
     {

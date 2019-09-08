@@ -38,18 +38,20 @@ public class CarEditText extends EditText
     protected void onFocusChanged(boolean focused, int direction, Rect previouslyFocusedRect)
     {
         super.onFocusChanged(focused, direction, previouslyFocusedRect);
-        if (focused)
-            startInput();
-        else
+        if (!focused)
+        {
             stopInput();
+        }
     }
 
+    @SuppressLint("ClickableViewAccessibility")
     @Override
     public boolean onTouchEvent(MotionEvent event)
     {
+        boolean result = super.onTouchEvent(event);
         if (event.getActionMasked() == MotionEvent.ACTION_UP && hasFocus())
             startInput();
-        return super.onTouchEvent(event);
+        return result;
     }
 
     @Override
