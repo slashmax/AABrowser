@@ -1,16 +1,16 @@
 package com.github.slashmax.aabrowser;
 
-import android.content.BroadcastReceiver;
 import android.content.ComponentName;
 import android.content.Context;
-import android.content.Intent;
-import android.content.IntentFilter;
+import android.os.Bundle;
+import android.os.Parcelable;
 import android.os.SystemClock;
-import android.support.v4.content.LocalBroadcastManager;
 import android.support.v4.media.MediaBrowserCompat;
 import android.support.v4.media.MediaMetadataCompat;
+import android.support.v4.media.session.MediaControllerCompat;
 import android.support.v4.media.session.MediaSessionCompat;
 import android.support.v4.media.session.PlaybackStateCompat;
+import android.util.Log;
 
 import static android.support.v4.media.session.PlaybackStateCompat.ACTION_PAUSE;
 import static android.support.v4.media.session.PlaybackStateCompat.ACTION_PLAY;
@@ -21,84 +21,69 @@ import static android.support.v4.media.session.PlaybackStateCompat.STATE_NONE;
 
 class CarMediaBrowser
 {
-    static final String LOCAL_INTENT_FILTER   = "CarMediaBrowser.IntentFilter";
+    private static final String TAG = "CarMediaBrowser";
 
-    private static final String TAG = "CarMediaService";
+    private static final String PLAYBACK_STATE_COMPAT           = "PlaybackStateCompat";
+    private static final String MEDIA_METADATA_COMPAT           = "MediaMetadataCompat";
+    private static final String PLAYBACK_ACTION                 = "PlaybackAction";
+    private static final String EXTRA_METADATA_ADVERTISEMENT    = "android.media.metadata.ADVERTISEMENT";
 
-    private Context                     m_Context;
-    private BroadcastReceiver           m_LocalIntentReceiver;
-    private MediaBrowserCompat          m_MediaBrowserCompat;
-    private MediaSessionCompat.Callback m_Callback;
-    private PlaybackStateCompat.Builder m_StateBuilder;
-    private MediaMetadataCompat.Builder m_MetaBuilder;
     private int                         m_State;
     private String                      m_Title;
     private long                        m_Position;
     private long                        m_Duration;
 
-    CarMediaBrowser(Context context)
+    private PlaybackStateCompat.Builder m_StateBuilder;
+    private MediaMetadataCompat.Builder m_MetaBuilder;
+
+    private Context                     m_Context;
+    private MediaSessionCompat.Callback m_Callback;
+    private MediaBrowserCompat          m_MediaBrowserCompat;
+    private MediaControllerCompat       m_MediaControllerCompat;
+
+    CarMediaBrowser(Context context, MediaSessionCompat.Callback callback)
     {
-        m_Context = context;
         m_State = STATE_NONE;
         m_Title = "";
         m_Position = 0;
         m_Duration = 0;
 
         m_StateBuilder = new PlaybackStateCompat.Builder();
-        m_StateBuilder.setActions(ACTION_PLAY | ACTION_PAUSE | ACTION_SKIP_TO_NEXT | ACTION_SKIP_TO_PREVIOUS);
+        m_StateBuilder.setActions(ACTION_PLAY | ACTION_PAUSE | ACTION_STOP | ACTION_SKIP_TO_NEXT | ACTION_SKIP_TO_PREVIOUS);
         m_StateBuilder.setState(m_State, m_Position, 1.0f);
 
         m_MetaBuilder = new MediaMetadataCompat.Builder();
         m_MetaBuilder.putString(MediaMetadataCompat.METADATA_KEY_TITLE, m_Title);
         m_MetaBuilder.putLong(MediaMetadataCompat.METADATA_KEY_DURATION, m_Duration);
+
+        m_Context = context;
+        m_Callback = callback;
+
+        m_MediaBrowserCompat = new MediaBrowserCompat(m_Context, new ComponentName(m_Context, CarMediaService.class), new CarCarMediaBrowserCallback(), null);
     }
 
-    void setCallback(MediaSessionCompat.Callback callback)
+    void setMetadataAdvertisement(long val)
     {
-        m_Callback = callback;
+        if (m_MetaBuilder != null)
+            m_MetaBuilder.putLong(EXTRA_METADATA_ADVERTISEMENT, val);
     }
 
     void onCreate()
     {
-        m_LocalIntentReceiver = new BroadcastReceiver()
-        {
-            @Override
-            public void onReceive(Context context, Intent intent)
-            {
-                if (intent != null && intent.getAction() != null && intent.getAction().equals(LOCAL_INTENT_FILTER) && m_Callback != null)
-                {
-                    switch ((int)intent.getLongExtra(CarMediaService.PLAYBACK_ACTION, 0))
-                    {
-                        case (int)ACTION_PLAY:              m_Callback.onPlay();            break;
-                        case (int)ACTION_PAUSE:             m_Callback.onPause();           break;
-                        case (int)ACTION_STOP:              m_Callback.onStop();            break;
-                        case (int)ACTION_SKIP_TO_PREVIOUS:  m_Callback.onSkipToPrevious();  break;
-                        case (int)ACTION_SKIP_TO_NEXT:      m_Callback.onSkipToNext();      break;
-                    }
-                }
-            }
-        };
-        LocalBroadcastManager.getInstance(m_Context).registerReceiver(m_LocalIntentReceiver, new IntentFilter(LOCAL_INTENT_FILTER));
-
-        m_MediaBrowserCompat = new MediaBrowserCompat(m_Context, new ComponentName(m_Context, CarMediaService.class), new CarCarMediaBrowserCallback(), null);
-
-        connect();
+        if (!isConnected())
+            connect();
     }
 
     void onDestroy()
     {
+        setPlaybackState(STATE_NONE, 0.0f);
         if (isConnected())
             disconnect();
-
-        LocalBroadcastManager.getInstance(m_Context).unregisterReceiver(m_LocalIntentReceiver);
     }
 
     private long floatToMs(float time)
     {
-        if (Float.isNaN(time))
-            return 0;
-        else
-            return (long)(time * 1000);
+        return (Float.isNaN(time) ? 0 : (long)(time * 1000));
     }
 
     boolean setPlaybackState(int state, float time)
@@ -109,7 +94,7 @@ class CarMediaBrowser
 
         m_State = state;
         m_Position = pos;
-        return broadcastPlaybackState();
+        return sendPlaybackState();
     }
 
     boolean setPlaybackPosition(float time)
@@ -119,7 +104,7 @@ class CarMediaBrowser
             return true;
 
         m_Position = pos;
-        return broadcastPlaybackState();
+        return true;
     }
 
     boolean setPlaybackTitle(String title)
@@ -128,7 +113,7 @@ class CarMediaBrowser
             return true;
 
         m_Title = title;
-        return broadcastMediaMetadata();
+        return sendMediaMetadata();
     }
 
     boolean setPlaybackDuration(float duration)
@@ -138,39 +123,35 @@ class CarMediaBrowser
             return true;
 
         m_Duration = dur;
-        return broadcastMediaMetadata();
+        return sendMediaMetadata();
     }
 
-    private boolean broadcastPlaybackState()
+    private boolean sendPlaybackState()
     {
         m_StateBuilder.setState(m_State, m_Position, 1.0f, SystemClock.elapsedRealtime());
-        return broadcastLocalIntent(m_StateBuilder.build());
+        return sendCustomAction(PLAYBACK_STATE_COMPAT, m_StateBuilder.build());
     }
 
-    private boolean broadcastMediaMetadata()
+    private boolean sendMediaMetadata()
     {
         m_MetaBuilder.putString(MediaMetadataCompat.METADATA_KEY_TITLE, m_Title);
         m_MetaBuilder.putLong(MediaMetadataCompat.METADATA_KEY_DURATION, m_Duration);
-        return broadcastLocalIntent(m_MetaBuilder.build());
+        return sendCustomAction(MEDIA_METADATA_COMPAT, m_MetaBuilder.build());
     }
 
-    private boolean broadcastLocalIntent(PlaybackStateCompat playbackStateCompat)
+    private boolean sendCustomAction(String action, Parcelable value)
     {
-        Intent intent = new Intent(CarMediaService.LOCAL_INTENT_FILTER);
-        intent.putExtra("PlaybackStateCompat", playbackStateCompat);
-        return broadcastLocalIntent(intent);
+        Bundle bundle = new Bundle();
+        bundle.putParcelable(action, value);
+        return sendCustomAction(action, bundle);
     }
 
-    private boolean broadcastLocalIntent(MediaMetadataCompat mediaMetadataCompat)
+    private boolean sendCustomAction(String action, Bundle extras)
     {
-        Intent intent = new Intent(CarMediaService.LOCAL_INTENT_FILTER);
-        intent.putExtra("MediaMetadataCompat", mediaMetadataCompat);
-        return broadcastLocalIntent(intent);
-    }
-
-    private boolean broadcastLocalIntent(Intent intent)
-    {
-        return LocalBroadcastManager.getInstance(m_Context).sendBroadcast(intent);
+        if (!isConnected())
+            return false;
+        m_MediaBrowserCompat.sendCustomAction(action, extras, null);
+        return true;
     }
 
     private void connect()
@@ -194,6 +175,37 @@ class CarMediaBrowser
         @Override
         public void onConnected()
         {
+            try
+            {
+                if (m_MediaBrowserCompat != null)
+                {
+                    m_MediaControllerCompat = new MediaControllerCompat(m_Context, m_MediaBrowserCompat.getSessionToken());
+                    m_MediaControllerCompat.registerCallback(new MediaControllerCompat.Callback()
+                    {
+                        @Override
+                        public void onSessionEvent(String event, Bundle extras)
+                        {
+                            if (event != null && event.equals(PLAYBACK_ACTION) && extras != null && m_Callback != null)
+                            {
+                                switch ((int)extras.getLong(PLAYBACK_ACTION))
+                                {
+                                    case (int)ACTION_PLAY:              m_Callback.onPlay();            break;
+                                    case (int)ACTION_PAUSE:             m_Callback.onPause();           break;
+                                    case (int)ACTION_STOP:              m_Callback.onStop();            break;
+                                    case (int)ACTION_SKIP_TO_PREVIOUS:  m_Callback.onSkipToPrevious();  break;
+                                    case (int)ACTION_SKIP_TO_NEXT:      m_Callback.onSkipToNext();      break;
+                                }
+                            }
+                            super.onSessionEvent(event, extras);
+                        }
+                    });
+                }
+            }
+            catch (Exception e)
+            {
+                Log.d(TAG, e.toString());
+            }
+
             super.onConnected();
         }
 

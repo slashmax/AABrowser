@@ -27,13 +27,39 @@ public class MainActivity extends AppCompatActivity
         m_CarWebView.onCreate();
 
         requestIgnoreBatteryOptimizations();
+        ForegroundService.startForegroundService(this);
+    }
+
+    @Override
+    protected void onStart()
+    {
+        super.onStart();
+    }
+
+    @Override
+    protected void onStop()
+    {
+        super.onStop();
     }
 
     @Override
     protected void onDestroy()
     {
-        super.onDestroy();
         m_CarWebView.onDestroy();
+        ForegroundService.stopForegroundService(this);
+        super.onDestroy();
+    }
+
+    @Override
+    protected void onPause()
+    {
+        super.onPause();
+    }
+
+    @Override
+    protected void onResume()
+    {
+        super.onResume();
     }
 
     @Override

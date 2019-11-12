@@ -6,16 +6,16 @@ import android.app.NotificationManager;
 import android.app.PendingIntent;
 import android.content.Context;
 import android.content.Intent;
-import android.graphics.Color;
 import android.os.Build;
 import android.support.annotation.RequiresApi;
 import android.support.v4.app.NotificationCompat;
-import android.support.v4.content.ContextCompat;
 import android.support.v4.media.MediaDescriptionCompat;
 import android.support.v4.media.MediaMetadataCompat;
 import android.support.v4.media.session.MediaButtonReceiver;
 import android.support.v4.media.session.MediaSessionCompat;
 import android.support.v4.media.session.PlaybackStateCompat;
+
+import static android.app.NotificationManager.IMPORTANCE_LOW;
 
 class CarMediaNotificationManager
 {
@@ -23,7 +23,7 @@ class CarMediaNotificationManager
 
     private static final String CHANNEL_ID = "com.github.slashmax.aabrowser.mediachannel";
     private static final int REQUEST_CODE = 500;
-    static final int NOTIFICATION_ID = 600;
+    private static final int NOTIFICATION_ID = 600;
 
     private final CarMediaService           m_CarMediaService;
     private final NotificationCompat.Action m_PlayAction;
@@ -72,24 +72,30 @@ class CarMediaNotificationManager
             m_NotificationManager.notify(NOTIFICATION_ID, notification);
     }
 
+    void cancel()
+    {
+        if (m_NotificationManager != null)
+            m_NotificationManager.cancel(NOTIFICATION_ID);
+    }
+
     Notification getNotification(MediaMetadataCompat metadata, PlaybackStateCompat state, MediaSessionCompat.Token token)
     {
         if (metadata == null || state == null || token == null)
             return null;
 
-        boolean isPlaying = state.getState() == PlaybackStateCompat.STATE_PLAYING;
         MediaDescriptionCompat description = metadata.getDescription();
-        NotificationCompat.Builder builder = buildNotification(state, token, isPlaying, description);
+        NotificationCompat.Builder builder = buildNotification(state, token, description);
         return builder.build();
     }
 
     private NotificationCompat.Builder buildNotification(PlaybackStateCompat state,
                                                          MediaSessionCompat.Token token,
-                                                         boolean isPlaying,
                                                          MediaDescriptionCompat description)
     {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O)
             createChannel();
+
+        boolean isPlaying = state.getState() == PlaybackStateCompat.STATE_PLAYING;
 
         NotificationCompat.Builder builder = new NotificationCompat.Builder(m_CarMediaService, CHANNEL_ID);
         builder.setStyle(
@@ -99,15 +105,16 @@ class CarMediaNotificationManager
                         .setShowCancelButton(true)
                         .setCancelButtonIntent(
                                 MediaButtonReceiver.buildMediaButtonPendingIntent(
-                                        m_CarMediaService, PlaybackStateCompat.ACTION_STOP)))
-                .setColor(ContextCompat.getColor(m_CarMediaService, R.color.notification_bg))
-                .setSmallIcon(R.mipmap.ic_launcher)
-                .setContentIntent(createContentIntent())
+                                        m_CarMediaService, PlaybackStateCompat.ACTION_STOP)));
+
+        builder.setSmallIcon(R.mipmap.ic_launcher)
                 .setContentTitle(description.getTitle())
                 .setContentText(description.getSubtitle())
-                .setDeleteIntent(MediaButtonReceiver.buildMediaButtonPendingIntent(
-                        m_CarMediaService, PlaybackStateCompat.ACTION_STOP))
-                .setVisibility(NotificationCompat.VISIBILITY_PUBLIC);
+                .setContentIntent(createContentIntent())
+                .setOngoing(isPlaying);
+
+        builder.setDeleteIntent(MediaButtonReceiver.buildMediaButtonPendingIntent(
+                m_CarMediaService, PlaybackStateCompat.ACTION_STOP));
 
         if ((state.getActions() & PlaybackStateCompat.ACTION_SKIP_TO_PREVIOUS) != 0)
             builder.addAction(m_PrevAction);
@@ -123,21 +130,11 @@ class CarMediaNotificationManager
     @RequiresApi(Build.VERSION_CODES.O)
     private void createChannel()
     {
-        if (m_NotificationManager.getNotificationChannel(CHANNEL_ID) == null)
+        if (m_NotificationManager != null && m_NotificationManager.getNotificationChannel(CHANNEL_ID) == null)
         {
-            CharSequence name = "AA Browser";
-            String description = "AA Browser MediaSession";
-            int importance = NotificationManager.IMPORTANCE_LOW;
-            NotificationChannel mChannel = new NotificationChannel(CHANNEL_ID, name, importance);
-
-            mChannel.setDescription(description);
-            mChannel.enableLights(true);
-
-            mChannel.setLightColor(Color.RED);
-            mChannel.enableVibration(true);
-            mChannel.setVibrationPattern(
-                    new long[]{100, 200, 300, 400, 500, 400, 300, 200, 400});
-            m_NotificationManager.createNotificationChannel(mChannel);
+            NotificationChannel channel = new NotificationChannel(CHANNEL_ID, "AA Browser", IMPORTANCE_LOW);
+            channel.setDescription("AA Browser MediaSession");
+            m_NotificationManager.createNotificationChannel(channel);
         }
     }
 

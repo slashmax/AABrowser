@@ -10,7 +10,6 @@ import android.preference.PreferenceManager;
 import android.support.design.widget.AppBarLayout;
 import android.support.v4.media.session.MediaSessionCompat;
 import android.support.v4.widget.SwipeRefreshLayout;
-import android.util.ArrayMap;
 import android.util.AttributeSet;
 import android.util.Log;
 import android.view.KeyEvent;
@@ -31,7 +30,6 @@ import java.io.InputStreamReader;
 import static android.graphics.Bitmap.Config.ALPHA_8;
 import static android.support.v4.media.session.PlaybackStateCompat.STATE_PAUSED;
 import static android.support.v4.media.session.PlaybackStateCompat.STATE_PLAYING;
-import static android.support.v4.media.session.PlaybackStateCompat.STATE_STOPPED;
 import static android.webkit.WebSettings.MIXED_CONTENT_COMPATIBILITY_MODE;
 
 public class CarWebView
@@ -43,7 +41,7 @@ public class CarWebView
         TextView.OnEditorActionListener,
         SwipeRefreshLayout.OnRefreshListener
 {
-    private static final String TAG = "AAWebView";
+    private static final String TAG = "CarWebView";
 
     private static final String DEFAULT_HOME = "https://www.google.com";
     private static final String DEFAULT_SEARCH = "https://www.google.com/search?q=";
@@ -83,7 +81,7 @@ public class CarWebView
 
     private CarMediaBrowser             m_CarMediaBrowser;
 
-    private ArrayMap<Integer,String>    m_Scripts;
+    private String                      m_JsScript;
 
     private static String               m_Log;
 
@@ -112,10 +110,16 @@ public class CarWebView
         m_CarInputManager = inputManager;
     }
 
+    public void setMetadataAdvertisement(long val)
+    {
+        if (m_CarMediaBrowser != null)
+            m_CarMediaBrowser.setMetadataAdvertisement(val);
+    }
+
     @SuppressLint("setJavaScriptEnabled")
     public void onCreate()
     {
-        m_DefaultVideoPoster = Bitmap.createBitmap(800, 600, ALPHA_8);
+        m_DefaultVideoPoster = Bitmap.createBitmap(1, 1, ALPHA_8);
         m_Log = "";
 
         InitWebChromeClient();
@@ -126,7 +130,9 @@ public class CarWebView
 
 //        setWebContentsDebuggingEnabled(true);
         getSettings().setJavaScriptEnabled(true);
-        getSettings().setMixedContentMode(MIXED_CONTENT_COMPATIBILITY_MODE);
+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP)
+            getSettings().setMixedContentMode(MIXED_CONTENT_COMPATIBILITY_MODE);
 
         getSettings().setUseWideViewPort(true);
         getSettings().setLoadWithOverviewMode(true);
@@ -145,6 +151,9 @@ public class CarWebView
 
         m_UserAgentString = getSettings().getUserAgentString();
         m_DesktopUserAgentString = BuildDesktopUserAgentString(m_UserAgentString);
+
+        Log(TAG, m_UserAgentString);
+        Log(TAG, m_DesktopUserAgentString);
 
         if (m_CarFrameLayout != null)
         {
@@ -190,15 +199,13 @@ public class CarWebView
             }
         };
 
-        m_CarMediaBrowser = new CarMediaBrowser(getContext());
-        m_CarMediaBrowser.setCallback(new MediaSessionCallback());
+        m_CarMediaBrowser = new CarMediaBrowser(getContext(), new MediaSessionCallback());
         m_CarMediaBrowser.onCreate();
 
-        m_Scripts = new ArrayMap<>();
-        readJavaScript(R.raw.media_functions);
-        readJavaScript(R.raw.media_events);
-
         addJavascriptInterface(new JavaScriptMediaCallbacks(), "m_JavaScriptMediaCallbacks");
+        m_JsScript = readJavaScript(R.raw.media_functions);
+        mediaFunctions();
+
         LoadSharedPreferences();
         goLast();
     }
@@ -357,7 +364,7 @@ public class CarWebView
             {
                 super.onProgressChanged(view, newProgress);
                 if (newProgress == 100)
-                    mediaEvents();
+                    mediaFunctions();
             }
 
             @Override
@@ -370,7 +377,7 @@ public class CarWebView
 
                 m_CarMediaBrowser.setPlaybackTitle(title);
                 refreshAppBar();
-                mediaEvents();
+                mediaFunctions();
             }
 
             @Override
@@ -440,7 +447,7 @@ public class CarWebView
                 if (m_SwipeRefreshLayout != null)
                     m_SwipeRefreshLayout.setRefreshing(false);
 
-                mediaEvents();
+                mediaFunctions();
                 requestFocus();
             }
         };
@@ -540,9 +547,9 @@ public class CarWebView
         reload();
     }
 
-    private void readJavaScript(int id)
+    private String readJavaScript(int id)
     {
-        m_Scripts.put(id, readRawResource(id));
+        return readRawResource(id);
     }
 
     private String readRawResource(int id)
@@ -576,19 +583,21 @@ public class CarWebView
             loadUrl("javascript:" + javaScript);
     }
 
-    private void loadJavaScript(int id)
-    {
-        loadJavaScript(m_Scripts.get(id));
-    }
-
     private void mediaFunctions()
     {
-        loadJavaScript(R.raw.media_functions);
+        mediaResetEventListener();
+        loadJavaScript(m_JsScript);
+        mediaSetEventListener();
     }
 
-    private void mediaEvents()
+    private void mediaResetEventListener()
     {
-        loadJavaScript(R.raw.media_events);
+        loadJavaScript("if (typeof mediaResetEventListener === 'function') {mediaResetEventListener();}");
+    }
+
+    private void mediaSetEventListener()
+    {
+        loadJavaScript("if (typeof mediaSetEventListener === 'function') {mediaSetEventListener();}");
     }
 
     private void mediaPlay()
@@ -673,7 +682,7 @@ public class CarWebView
         @JavascriptInterface
         public void onMediaStop(float time)
         {
-            m_CarMediaBrowser.setPlaybackState(STATE_STOPPED, time);
+            m_CarMediaBrowser.setPlaybackState(STATE_PAUSED, time);
         }
 
         @JavascriptInterface

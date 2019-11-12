@@ -1,6 +1,5 @@
 package com.github.slashmax.aabrowser;
 
-import android.app.Notification;
 import android.app.NotificationChannel;
 import android.app.NotificationManager;
 import android.app.PendingIntent;
@@ -9,6 +8,7 @@ import android.content.Context;
 import android.content.Intent;
 import android.os.Build;
 import android.os.IBinder;
+import android.support.v4.app.NotificationCompat;
 import android.util.Log;
 
 public class ForegroundService extends Service
@@ -31,8 +31,8 @@ public class ForegroundService extends Service
     @Override
     public void onDestroy()
     {
-        super.onDestroy();
         stopNotification();
+        super.onDestroy();
     }
 
     @Override
@@ -55,38 +55,33 @@ public class ForegroundService extends Service
         {
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O)
             {
-                CharSequence channelName = getString(R.string.notification_channel_name);
-                String channelDescription = getString(R.string.notification_channel_description);
-
-                NotificationChannel channel = new NotificationChannel(CHANNEL_ID, channelName, NotificationManager.IMPORTANCE_LOW);
-                channel.setDescription(channelDescription);
-                channel.setShowBadge(false);
-
                 NotificationManager notificationManager = getSystemService(NotificationManager.class);
-                if (notificationManager != null)
+                if (notificationManager != null &&
+                    notificationManager.getNotificationChannel(CHANNEL_ID) == null)
+                {
+                    CharSequence channelName = getString(R.string.notification_channel_name);
+                    String channelDescription = getString(R.string.notification_channel_description);
+
+                    NotificationChannel channel = new NotificationChannel(CHANNEL_ID, channelName, NotificationManager.IMPORTANCE_LOW);
+                    channel.setDescription(channelDescription);
+                    channel.setShowBadge(false);
                     notificationManager.createNotificationChannel(channel);
+                }
             }
 
             Intent intent = new Intent(this, getClass());
             intent.setAction("STOP");
             PendingIntent pendingIntent = PendingIntent.getService(this, 0, intent, 0);
 
-            Notification.Builder builder;
-            if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O)
-                builder = new Notification.Builder(this);
-            else
-                builder = new Notification.Builder(this, CHANNEL_ID);
+            NotificationCompat.Builder builder = new NotificationCompat.Builder(this, CHANNEL_ID);
 
-            Notification notification = builder
+            builder.setSmallIcon(R.mipmap.ic_launcher)
                     .setContentTitle(getText(R.string.notification_title))
                     .setContentText(getText(R.string.notification_text))
-                    .setSmallIcon(R.mipmap.ic_launcher)
                     .setContentIntent(pendingIntent)
-                    .setShowWhen(true)
-                    .setPriority(Notification.PRIORITY_LOW)
-                    .build();
+                    .setShowWhen(true);
 
-            startForeground(ONGOING_NOTIFICATION_ID, notification);
+            startForeground(ONGOING_NOTIFICATION_ID, builder.build());
         }
         catch (Exception e)
         {
@@ -99,13 +94,6 @@ public class ForegroundService extends Service
         try
         {
             stopForeground(true);
-
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O)
-            {
-                NotificationManager notificationManager = getSystemService(NotificationManager.class);
-                if (notificationManager != null)
-                    notificationManager.deleteNotificationChannel(CHANNEL_ID);
-            }
         }
         catch (Exception e)
         {

@@ -9,7 +9,7 @@ import android.widget.FrameLayout;
 
 public class CarFrameLayout extends FrameLayout
 {
-    private static final String TAG = "AAFrameLayout";
+    private static final String TAG = "CarFrameLayout";
 
     public CarFrameLayout(@NonNull Context context)
     {

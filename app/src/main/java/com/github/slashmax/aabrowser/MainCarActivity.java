@@ -42,12 +42,38 @@ public class MainCarActivity extends CarActivity
     }
 
     @Override
+    public void onStart()
+    {
+        super.onStart();
+    }
+
+    @Override
+    public void onStop()
+    {
+        super.onStop();
+    }
+
+    @Override
     public void onDestroy()
     {
-        super.onDestroy();
         m_CarWebView.onDestroy();
         m_CarController.onDestroy();
         ForegroundService.stopForegroundService(this);
+        super.onDestroy();
+    }
+
+    @Override
+    public void onPause()
+    {
+        super.onPause();
+        m_CarWebView.setMetadataAdvertisement(0);
+    }
+
+    @Override
+    public void onResume()
+    {
+        super.onResume();
+        m_CarWebView.setMetadataAdvertisement(1);
     }
 
     @Override

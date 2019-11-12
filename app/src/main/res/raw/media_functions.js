@@ -64,11 +64,14 @@ function onMediaPause()
 function onMediaStop()
 {
     m_JavaScriptMediaCallbacks.onMediaStop(getMediaCurrentTime());
+    checkPlayNext();
 }
 
 function onMediaTimeUpdate()
 {
     m_JavaScriptMediaCallbacks.onMediaTimeUpdate(getMediaCurrentTime());
+    checkSkipAd();
+    checkCloseAd();
 }
 
 function onMediaDurationChange()
@@ -90,10 +93,10 @@ function clearMediaInterval()
 function setMediaInterval()
 {
     clearMediaInterval();
-    mediaInterval = setInterval(onMediaInterval, 500);
+    mediaInterval = setInterval(onMediaInterval, 100);
 }
 
-function mediaSetEventListener()
+function mediaResetEventListener()
 {
     clearMediaInterval();
     var media = getMedia();
@@ -104,7 +107,15 @@ function mediaSetEventListener()
         media.removeEventListener('ended', onMediaStop);
         media.removeEventListener('timeupdate', onMediaTimeUpdate);
         media.removeEventListener('durationchange', onMediaDurationChange);
+    }
+}
 
+function mediaSetEventListener()
+{
+    clearMediaInterval();
+    var media = getMedia();
+    if (media != null)
+    {
         media.addEventListener('play', onMediaPlay);
         media.addEventListener('pause', onMediaPause);
         media.addEventListener('ended', onMediaStop);
@@ -154,7 +165,7 @@ function mediaSeekToEnd()
         mediaSeekTo(duration);
 }
 
-function onMediaInterval()
+function checkPlayNext()
 {
     if (hasMedia())
     {
@@ -170,15 +181,30 @@ function onMediaInterval()
                 }
             }
         }
+    }
+}
 
+function checkSkipAd()
+{
+    if (hasMedia())
+    {
         if (isMediaPlaying())
         {
-            var skipAd = document.querySelector(".ytp-ad-skip-button");
-            if (skipAd != null)
+            var hasAd = document.querySelector(".ytp-ad-player-overlay-skip-or-preview");
+            if (hasAd != null)
             {
                 mediaSeekToEnd();
             }
+        }
+    }
+}
 
+function checkCloseAd()
+{
+    if (hasMedia())
+    {
+        if (isMediaPlaying())
+        {
             var closeAd = document.querySelectorAll(".ytp-ad-overlay-close-button");
             if (closeAd != null && closeAd.length > 0)
             {
@@ -189,4 +215,9 @@ function onMediaInterval()
             }
         }
     }
+}
+
+function onMediaInterval()
+{
+    checkPlayNext();
 }
