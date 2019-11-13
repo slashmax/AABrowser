@@ -1,10 +1,9 @@
 package com.github.slashmax.aabrowser;
 
 import android.app.Application;
-import android.content.res.Configuration;
-import android.support.v7.app.AppCompatDelegate;
+import androidx.appcompat.app.AppCompatDelegate;
 
-import static android.support.v7.app.AppCompatDelegate.MODE_NIGHT_YES;
+import static androidx.appcompat.app.AppCompatDelegate.MODE_NIGHT_YES;
 
 public class CarApplication extends Application
 {
@@ -17,15 +16,4 @@ public class CarApplication extends Application
         AppCompatDelegate.setDefaultNightMode(MODE_NIGHT_YES);
     }
 
-    @Override
-    public void onTerminate()
-    {
-        super.onTerminate();
-    }
-
-    @Override
-    public void onConfigurationChanged(Configuration newConfig)
-    {
-        super.onConfigurationChanged(newConfig);
-    }
 }

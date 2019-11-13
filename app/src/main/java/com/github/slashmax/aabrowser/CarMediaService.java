@@ -2,9 +2,9 @@ package com.github.slashmax.aabrowser;
 
 import android.app.Notification;
 import android.os.Bundle;
-import android.support.annotation.NonNull;
+import androidx.annotation.NonNull;
 import android.support.v4.media.MediaBrowserCompat.MediaItem;
-import android.support.v4.media.MediaBrowserServiceCompat;
+import androidx.media.MediaBrowserServiceCompat;
 import android.support.v4.media.MediaMetadataCompat;
 import android.support.v4.media.session.MediaControllerCompat;
 import android.support.v4.media.session.MediaSessionCompat;
@@ -47,7 +47,6 @@ public class CarMediaService extends MediaBrowserServiceCompat
 
         m_MediaSessionCompat = new MediaSessionCompat(this, "CarMediaService");
         m_MediaSessionCompat.setCallback(new MediaSessionCallback());
-        m_MediaSessionCompat.setFlags(MediaSessionCompat.FLAG_HANDLES_MEDIA_BUTTONS | MediaSessionCompat.FLAG_HANDLES_TRANSPORT_CONTROLS);
         m_MediaSessionCompat.setActive(true);
         m_MediaSessionCompat.setPlaybackState(builder.build());
         m_MediaSessionCompat.setMetadata(new MediaMetadataCompat.Builder().build());

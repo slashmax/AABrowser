@@ -7,11 +7,12 @@ import android.app.PendingIntent;
 import android.content.Context;
 import android.content.Intent;
 import android.os.Build;
-import android.support.annotation.RequiresApi;
-import android.support.v4.app.NotificationCompat;
+import androidx.annotation.RequiresApi;
+import androidx.core.app.NotificationCompat;
 import android.support.v4.media.MediaDescriptionCompat;
 import android.support.v4.media.MediaMetadataCompat;
-import android.support.v4.media.session.MediaButtonReceiver;
+
+import androidx.media.session.MediaButtonReceiver;
 import android.support.v4.media.session.MediaSessionCompat;
 import android.support.v4.media.session.PlaybackStateCompat;
 
@@ -99,7 +100,7 @@ class CarMediaNotificationManager
 
         NotificationCompat.Builder builder = new NotificationCompat.Builder(m_CarMediaService, CHANNEL_ID);
         builder.setStyle(
-                new android.support.v4.media.app.NotificationCompat.MediaStyle()
+                new androidx.media.app.NotificationCompat.MediaStyle()
                         .setMediaSession(token)
                         .setShowActionsInCompactView(0, 1, 2)
                         .setShowCancelButton(true)
