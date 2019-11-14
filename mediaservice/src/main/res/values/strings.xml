@@ -1,0 +1,9 @@
+<resources>
+    <string name="app_name">AA Browser Media Service</string>
+    <string name="service_name">AAB Media</string>
+
+    <string name="label_play">Play</string>
+    <string name="label_pause">Pause</string>
+    <string name="label_previous">Previous track</string>
+    <string name="label_next">Next track</string>
+</resources>
