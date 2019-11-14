@@ -383,6 +383,7 @@ public class CarWebView
             @Override
             public void onReceivedIcon(WebView view, Bitmap icon)
             {
+                m_CarMediaBrowser.setPlaybackIcon(icon, false);
                 super.onReceivedIcon(view, icon);
             }
 
@@ -434,6 +435,7 @@ public class CarWebView
                 if (m_SwipeRefreshLayout != null)
                     m_SwipeRefreshLayout.setRefreshing(true);
 
+                m_CarMediaBrowser.setPlaybackIcon(favicon, true);
                 mediaFunctions();
                 requestFocus();
             }

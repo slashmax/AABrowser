@@ -2,6 +2,7 @@ package com.github.slashmax.aabrowser;
 
 import android.content.ComponentName;
 import android.content.Context;
+import android.graphics.Bitmap;
 import android.os.Bundle;
 import android.os.Parcelable;
 import android.os.SystemClock;
@@ -12,6 +13,7 @@ import android.support.v4.media.session.MediaSessionCompat;
 import android.support.v4.media.session.PlaybackStateCompat;
 import android.util.Log;
 
+import static android.support.v4.media.MediaMetadataCompat.METADATA_KEY_DISPLAY_ICON;
 import static android.support.v4.media.session.PlaybackStateCompat.ACTION_PAUSE;
 import static android.support.v4.media.session.PlaybackStateCompat.ACTION_PLAY;
 import static android.support.v4.media.session.PlaybackStateCompat.ACTION_SKIP_TO_NEXT;
@@ -30,6 +32,7 @@ class CarMediaBrowser
 
     private int                         m_State;
     private String                      m_Title;
+    private Bitmap                      m_Icon;
     private long                        m_Position;
     private long                        m_Duration;
 
@@ -59,7 +62,9 @@ class CarMediaBrowser
         m_Context = context;
         m_Callback = callback;
 
-        m_MediaBrowserCompat = new MediaBrowserCompat(m_Context, new ComponentName(m_Context, CarMediaService.class), new CarCarMediaBrowserCallback(), null);
+        m_MediaBrowserCompat = new MediaBrowserCompat(m_Context,
+                new ComponentName("com.github.slashmax.aabrowser.mediaservice", "com.github.slashmax.aabrowser.mediaservice.CarMediaService"),
+                new CarCarMediaBrowserCallback(), null);
     }
 
     void setMetadataAdvertisement(long val)
@@ -116,6 +121,17 @@ class CarMediaBrowser
         return sendMediaMetadata();
     }
 
+    boolean setPlaybackIcon(Bitmap icon, boolean force)
+    {
+        boolean ok = (icon != null);
+        ok = ok && ((m_Icon == null) || (icon.getWidth() >= m_Icon.getWidth()));
+        ok = ok && ((m_Icon == null) || (icon.getHeight() >= m_Icon.getHeight()));
+        if (!ok && !force)
+            return false;
+        m_Icon = icon;
+        return sendMediaMetadata();
+    }
+
     boolean setPlaybackDuration(float duration)
     {
         long dur = floatToMs(duration);
@@ -136,6 +152,7 @@ class CarMediaBrowser
     {
         m_MetaBuilder.putString(MediaMetadataCompat.METADATA_KEY_TITLE, m_Title);
         m_MetaBuilder.putLong(MediaMetadataCompat.METADATA_KEY_DURATION, m_Duration);
+        m_MetaBuilder.putBitmap(METADATA_KEY_DISPLAY_ICON, m_Icon);
         return sendCustomAction(MEDIA_METADATA_COMPAT, m_MetaBuilder.build());
     }
 

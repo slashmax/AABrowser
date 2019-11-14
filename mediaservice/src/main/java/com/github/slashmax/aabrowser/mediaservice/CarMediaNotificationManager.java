@@ -1,4 +1,4 @@
-package com.github.slashmax.aabrowser;
+package com.github.slashmax.aabrowser.mediaservice;
 
 import android.app.Notification;
 import android.app.NotificationChannel;
@@ -141,7 +141,8 @@ class CarMediaNotificationManager
 
     private PendingIntent createContentIntent()
     {
-        Intent openUI = new Intent(m_CarMediaService, MainActivity.class);
+        Intent openUI = new Intent();
+        openUI.setClassName("com.github.slashmax.aabrowser", "com.github.slashmax.aabrowser.MainActivity");
         openUI.setFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP);
         return PendingIntent.getActivity(m_CarMediaService, REQUEST_CODE, openUI, PendingIntent.FLAG_CANCEL_CURRENT);
     }

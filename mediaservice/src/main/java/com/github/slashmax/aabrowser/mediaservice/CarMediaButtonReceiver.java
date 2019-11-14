@@ -1,4 +1,4 @@
-package com.github.slashmax.aabrowser;
+package com.github.slashmax.aabrowser.mediaservice;
 
 import android.content.Context;
 import android.content.Intent;

@@ -15,5 +15,4 @@ public class CarApplication extends Application
         super.onCreate();
         AppCompatDelegate.setDefaultNightMode(MODE_NIGHT_YES);
     }
-
 }
