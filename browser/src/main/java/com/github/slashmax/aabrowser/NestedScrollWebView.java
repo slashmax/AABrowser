@@ -10,9 +10,10 @@ import androidx.core.view.ViewCompat;
 import android.util.AttributeSet;
 import android.view.MotionEvent;
 import android.view.View;
-import android.webkit.WebView;
 
-public class NestedScrollWebView extends WebView implements NestedScrollingChild2
+import org.adblockplus.libadblockplus.android.webview.AdblockWebView;
+
+public class NestedScrollWebView extends AdblockWebView implements NestedScrollingChild2
 {
     private static final String TAG = "NestedScrollWebView";
 

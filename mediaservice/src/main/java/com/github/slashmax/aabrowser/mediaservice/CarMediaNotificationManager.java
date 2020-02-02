@@ -26,45 +26,62 @@ class CarMediaNotificationManager
     private static final int REQUEST_CODE = 500;
     private static final int NOTIFICATION_ID = 600;
 
-    private final CarMediaService           m_CarMediaService;
-    private final NotificationCompat.Action m_PlayAction;
-    private final NotificationCompat.Action m_PauseAction;
-    private final NotificationCompat.Action m_NextAction;
-    private final NotificationCompat.Action m_PrevAction;
-    private final NotificationManager       m_NotificationManager;
+    private CarMediaService           m_CarMediaService;
+    private NotificationManager       m_NotificationManager;
 
-    CarMediaNotificationManager(CarMediaService carMediaService)
+    private NotificationCompat.Action m_PlayAction;
+    private NotificationCompat.Action m_PauseAction;
+    private NotificationCompat.Action m_NextAction;
+    private NotificationCompat.Action m_PrevAction;
+
+    void setCarMediaService(CarMediaService carMediaService)
     {
         m_CarMediaService = carMediaService;
+    }
 
-        m_NotificationManager = (NotificationManager)m_CarMediaService.getSystemService(Context.NOTIFICATION_SERVICE);
+    void onCreate()
+    {
+        if (m_CarMediaService != null)
+        {
+            m_NotificationManager = (NotificationManager) m_CarMediaService.getSystemService(Context.NOTIFICATION_SERVICE);
+            cancel();
 
-        m_PlayAction =
-                new NotificationCompat.Action(
-                        R.drawable.ic_play_arrow_black_24dp,
-                        m_CarMediaService.getString(R.string.label_play),
-                        MediaButtonReceiver.buildMediaButtonPendingIntent(
-                                m_CarMediaService, PlaybackStateCompat.ACTION_PLAY));
-        m_PauseAction =
-                new NotificationCompat.Action(
-                        R.drawable.ic_pause_black_24dp,
-                        m_CarMediaService.getString(R.string.label_pause),
-                        MediaButtonReceiver.buildMediaButtonPendingIntent(
-                                m_CarMediaService, PlaybackStateCompat.ACTION_PAUSE));
-        m_PrevAction =
-                new NotificationCompat.Action(
-                        R.drawable.ic_skip_previous_black_24dp,
-                        m_CarMediaService.getString(R.string.label_previous),
-                        MediaButtonReceiver.buildMediaButtonPendingIntent(
-                                m_CarMediaService, PlaybackStateCompat.ACTION_SKIP_TO_PREVIOUS));
-        m_NextAction =
-                new NotificationCompat.Action(
-                        R.drawable.ic_skip_next_black_24dp,
-                        m_CarMediaService.getString(R.string.label_next),
-                        MediaButtonReceiver.buildMediaButtonPendingIntent(
-                                m_CarMediaService, PlaybackStateCompat.ACTION_SKIP_TO_NEXT));
-        if (m_NotificationManager != null)
-            m_NotificationManager.cancel(NOTIFICATION_ID);
+            m_PlayAction =
+                    new NotificationCompat.Action(
+                            R.drawable.ic_play_arrow_black_24dp,
+                            m_CarMediaService.getString(R.string.label_play),
+                            MediaButtonReceiver.buildMediaButtonPendingIntent(
+                                    m_CarMediaService, PlaybackStateCompat.ACTION_PLAY));
+            m_PauseAction =
+                    new NotificationCompat.Action(
+                            R.drawable.ic_pause_black_24dp,
+                            m_CarMediaService.getString(R.string.label_pause),
+                            MediaButtonReceiver.buildMediaButtonPendingIntent(
+                                    m_CarMediaService, PlaybackStateCompat.ACTION_PAUSE));
+            m_PrevAction =
+                    new NotificationCompat.Action(
+                            R.drawable.ic_skip_previous_black_24dp,
+                            m_CarMediaService.getString(R.string.label_previous),
+                            MediaButtonReceiver.buildMediaButtonPendingIntent(
+                                    m_CarMediaService, PlaybackStateCompat.ACTION_SKIP_TO_PREVIOUS));
+            m_NextAction =
+                    new NotificationCompat.Action(
+                            R.drawable.ic_skip_next_black_24dp,
+                            m_CarMediaService.getString(R.string.label_next),
+                            MediaButtonReceiver.buildMediaButtonPendingIntent(
+                                    m_CarMediaService, PlaybackStateCompat.ACTION_SKIP_TO_NEXT));
+        }
+    }
+
+    void onDestroy()
+    {
+        cancel();
+        m_CarMediaService = null;
+        m_NotificationManager = null;
+        m_PlayAction = null;
+        m_PauseAction = null;
+        m_NextAction = null;
+        m_PrevAction = null;
     }
 
     void notify(Notification notification)
@@ -81,7 +98,7 @@ class CarMediaNotificationManager
 
     Notification getNotification(MediaMetadataCompat metadata, PlaybackStateCompat state, MediaSessionCompat.Token token)
     {
-        if (metadata == null || state == null || token == null)
+        if (m_CarMediaService == null || metadata == null || state == null || token == null)
             return null;
 
         MediaDescriptionCompat description = metadata.getDescription();

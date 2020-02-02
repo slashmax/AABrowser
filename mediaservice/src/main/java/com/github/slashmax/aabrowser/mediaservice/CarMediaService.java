@@ -3,6 +3,7 @@ package com.github.slashmax.aabrowser.mediaservice;
 import android.app.Notification;
 import android.os.Bundle;
 import androidx.annotation.NonNull;
+
 import android.support.v4.media.MediaBrowserCompat.MediaItem;
 import androidx.media.MediaBrowserServiceCompat;
 import android.support.v4.media.MediaMetadataCompat;
@@ -12,6 +13,12 @@ import android.support.v4.media.session.PlaybackStateCompat;
 
 import java.util.ArrayList;
 import java.util.List;
+
+import static android.support.v4.media.session.PlaybackStateCompat.ACTION_PAUSE;
+import static android.support.v4.media.session.PlaybackStateCompat.ACTION_PLAY;
+import static android.support.v4.media.session.PlaybackStateCompat.ACTION_SKIP_TO_NEXT;
+import static android.support.v4.media.session.PlaybackStateCompat.ACTION_SKIP_TO_PREVIOUS;
+import static android.support.v4.media.session.PlaybackStateCompat.ACTION_STOP;
 
 public class CarMediaService extends MediaBrowserServiceCompat
 {
@@ -30,11 +37,13 @@ public class CarMediaService extends MediaBrowserServiceCompat
     {
         super.onCreate();
 
-        PlaybackStateCompat.Builder builder = new PlaybackStateCompat.Builder();
-        builder.setActions(PlaybackStateCompat.ACTION_PLAY | PlaybackStateCompat.ACTION_PAUSE | PlaybackStateCompat.ACTION_STOP | PlaybackStateCompat.ACTION_SKIP_TO_NEXT | PlaybackStateCompat.ACTION_SKIP_TO_PREVIOUS);
-        builder.setState(PlaybackStateCompat.STATE_PAUSED, 0, 1.0f);
+        m_CarMediaNotificationManager = new CarMediaNotificationManager();
+        m_CarMediaNotificationManager.setCarMediaService(this);
+        m_CarMediaNotificationManager.onCreate();
 
-        m_CarMediaNotificationManager = new CarMediaNotificationManager(this);
+        PlaybackStateCompat.Builder builder = new PlaybackStateCompat.Builder();
+        builder.setActions(ACTION_PLAY | ACTION_PAUSE | ACTION_STOP | ACTION_SKIP_TO_NEXT | ACTION_SKIP_TO_PREVIOUS);
+        builder.setState(PlaybackStateCompat.STATE_NONE, 0, 1.0f);
 
         m_MediaSessionCompat = new MediaSessionCompat(this, "CarMediaService");
         m_MediaSessionCompat.setCallback(new MediaSessionCallback());
@@ -50,8 +59,21 @@ public class CarMediaService extends MediaBrowserServiceCompat
     @Override
     public void onDestroy()
     {
-        m_CarMediaNotificationManager.cancel();
-        m_MediaSessionCompat.release();
+        if (m_CarMediaNotificationManager != null)
+        {
+            m_CarMediaNotificationManager.onDestroy();
+            m_CarMediaNotificationManager = null;
+        }
+
+        if (m_MediaSessionCompat != null)
+        {
+            m_MediaSessionCompat.setCallback(null);
+            m_MediaSessionCompat.release();
+            m_MediaSessionCompat = null;
+        }
+
+        m_MediaControllerCompat = null;
+
         super.onDestroy();
     }
 
@@ -93,7 +115,7 @@ public class CarMediaService extends MediaBrowserServiceCompat
                     m_MediaSessionCompat.setMetadata(mediaMetadataCompat);
                 }
             }
-            if (cancel)
+            if (cancel && m_CarMediaNotificationManager != null)
                 m_CarMediaNotificationManager.cancel();
             else if (update)
                 updateNotification();
@@ -111,7 +133,7 @@ public class CarMediaService extends MediaBrowserServiceCompat
 
     private void broadcastPlaybackAction(String event, Bundle extras)
     {
-        if (m_MediaSessionCompat.isActive())
+        if (m_MediaSessionCompat != null && m_MediaSessionCompat.isActive())
             m_MediaSessionCompat.sendSessionEvent(event, extras);
     }
 
@@ -120,31 +142,31 @@ public class CarMediaService extends MediaBrowserServiceCompat
         @Override
         public void onPlay()
         {
-            broadcastPlaybackAction(PlaybackStateCompat.ACTION_PLAY);
+            broadcastPlaybackAction(ACTION_PLAY);
         }
 
         @Override
         public void onPause()
         {
-            broadcastPlaybackAction(PlaybackStateCompat.ACTION_PAUSE);
+            broadcastPlaybackAction(ACTION_PAUSE);
         }
 
         @Override
         public void onStop()
         {
-            broadcastPlaybackAction(PlaybackStateCompat.ACTION_STOP);
+            broadcastPlaybackAction(ACTION_STOP);
         }
 
         @Override
         public void onSkipToPrevious()
         {
-            broadcastPlaybackAction(PlaybackStateCompat.ACTION_SKIP_TO_PREVIOUS);
+            broadcastPlaybackAction(ACTION_SKIP_TO_PREVIOUS);
         }
 
         @Override
         public void onSkipToNext()
         {
-            broadcastPlaybackAction(PlaybackStateCompat.ACTION_SKIP_TO_NEXT);
+            broadcastPlaybackAction(ACTION_SKIP_TO_NEXT);
         }
     }
 
@@ -155,12 +177,14 @@ public class CarMediaService extends MediaBrowserServiceCompat
 
         return m_CarMediaNotificationManager.getNotification(m_MediaControllerCompat.getMetadata(), m_MediaControllerCompat.getPlaybackState(), getSessionToken());
     }
+
     private void updateNotification()
     {
         Notification notification = getNotification();
         if (notification != null && m_CarMediaNotificationManager != null)
             m_CarMediaNotificationManager.notify(notification);
     }
+
     boolean stateChanged(PlaybackStateCompat playbackStateCompat)
     {
         if (m_MediaControllerCompat == null || m_MediaControllerCompat.getPlaybackState() == null)

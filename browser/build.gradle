@@ -9,6 +9,7 @@ android {
         targetSdkVersion 29
         versionCode 1
         versionName "1.0"
+        missingDimensionStrategy 'abi', 'abi_all', 'abi_arm', 'abi_arm64', 'abi_x86'
     }
     buildTypes {
         release {
@@ -20,10 +21,15 @@ android {
 
 dependencies {
     implementation fileTree(dir: 'libs', include: ['*.jar'])
-    implementation fileTree(dir: 'libs', include: ['*.aar'])
+    implementation fileTree(dir: 'libs/v4', include: ['*.aar'])
+    
     implementation 'androidx.appcompat:appcompat:1.1.0'
     implementation 'androidx.constraintlayout:constraintlayout:1.1.3'
     implementation 'androidx.legacy:legacy-support-v4:1.0.0'
     implementation 'androidx.media:media:1.1.0'
     implementation 'com.google.android.material:material:1.0.0'
+
+    implementation 'org.adblockplus:adblock-android:3.10'
+    implementation 'org.adblockplus:adblock-android-webview:3.10'
+    implementation 'org.adblockplus:adblock-android-settings:3.10'
 }

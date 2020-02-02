@@ -5,7 +5,6 @@ import android.content.Context;
 import android.graphics.Bitmap;
 import android.os.Bundle;
 import android.os.Parcelable;
-import android.os.SystemClock;
 import android.support.v4.media.MediaBrowserCompat;
 import android.support.v4.media.MediaMetadataCompat;
 import android.support.v4.media.session.MediaControllerCompat;
@@ -30,51 +29,42 @@ class CarMediaBrowser
     private static final String PLAYBACK_ACTION                 = "PlaybackAction";
     private static final String EXTRA_METADATA_ADVERTISEMENT    = "android.media.metadata.ADVERTISEMENT";
 
+    private Context                     m_Context;
+    private MediaSessionCompat.Callback m_Callback;
+
     private int                         m_State;
     private String                      m_Title;
     private Bitmap                      m_Icon;
     private long                        m_Position;
     private long                        m_Duration;
+    private boolean                     m_Advertisement;
 
-    private PlaybackStateCompat.Builder m_StateBuilder;
-    private MediaMetadataCompat.Builder m_MetaBuilder;
-
-    private Context                     m_Context;
-    private MediaSessionCompat.Callback m_Callback;
     private MediaBrowserCompat          m_MediaBrowserCompat;
     private MediaControllerCompat       m_MediaControllerCompat;
 
-    CarMediaBrowser(Context context, MediaSessionCompat.Callback callback)
+    void setContext(Context context)
+    {
+        m_Context = context;
+    }
+
+    void setCallback(MediaSessionCompat.Callback callback)
+    {
+        m_Callback = callback;
+    }
+
+    void onCreate()
     {
         m_State = STATE_NONE;
         m_Title = "";
         m_Position = 0;
         m_Duration = 0;
+        m_Advertisement = false;
 
-        m_StateBuilder = new PlaybackStateCompat.Builder();
-        m_StateBuilder.setActions(ACTION_PLAY | ACTION_PAUSE | ACTION_STOP | ACTION_SKIP_TO_NEXT | ACTION_SKIP_TO_PREVIOUS);
-        m_StateBuilder.setState(m_State, m_Position, 1.0f);
-
-        m_MetaBuilder = new MediaMetadataCompat.Builder();
-        m_MetaBuilder.putString(MediaMetadataCompat.METADATA_KEY_TITLE, m_Title);
-        m_MetaBuilder.putLong(MediaMetadataCompat.METADATA_KEY_DURATION, m_Duration);
-
-        m_Context = context;
-        m_Callback = callback;
-
-        m_MediaBrowserCompat = new MediaBrowserCompat(m_Context,
+        if (m_Context != null)
+            m_MediaBrowserCompat = new MediaBrowserCompat(m_Context,
                 new ComponentName("com.github.slashmax.aabrowser.mediaservice", "com.github.slashmax.aabrowser.mediaservice.CarMediaService"),
                 new CarCarMediaBrowserCallback(), null);
-    }
 
-    void setMetadataAdvertisement(long val)
-    {
-        if (m_MetaBuilder != null)
-            m_MetaBuilder.putLong(EXTRA_METADATA_ADVERTISEMENT, val);
-    }
-
-    void onCreate()
-    {
         if (!isConnected())
             connect();
     }
@@ -84,6 +74,16 @@ class CarMediaBrowser
         setPlaybackState(STATE_NONE, 0.0f);
         if (isConnected())
             disconnect();
+
+        m_Context = null;
+        m_Callback = null;
+        m_MediaBrowserCompat = null;
+        m_MediaControllerCompat = null;
+    }
+
+    void setMetadataAdvertisement(boolean advertisement)
+    {
+        m_Advertisement = advertisement;
     }
 
     private long floatToMs(float time)
@@ -144,16 +144,25 @@ class CarMediaBrowser
 
     private boolean sendPlaybackState()
     {
-        m_StateBuilder.setState(m_State, m_Position, 1.0f, SystemClock.elapsedRealtime());
-        return sendCustomAction(PLAYBACK_STATE_COMPAT, m_StateBuilder.build());
+        PlaybackStateCompat.Builder builder = new PlaybackStateCompat.Builder();
+
+        builder.setActions(ACTION_PLAY | ACTION_PAUSE | ACTION_STOP | ACTION_SKIP_TO_NEXT | ACTION_SKIP_TO_PREVIOUS);
+        builder.setState(m_State, m_Position, 1.0f);
+
+        return sendCustomAction(PLAYBACK_STATE_COMPAT, builder.build());
     }
 
     private boolean sendMediaMetadata()
     {
-        m_MetaBuilder.putString(MediaMetadataCompat.METADATA_KEY_TITLE, m_Title);
-        m_MetaBuilder.putLong(MediaMetadataCompat.METADATA_KEY_DURATION, m_Duration);
-        m_MetaBuilder.putBitmap(METADATA_KEY_DISPLAY_ICON, m_Icon);
-        return sendCustomAction(MEDIA_METADATA_COMPAT, m_MetaBuilder.build());
+        MediaMetadataCompat.Builder builder = new MediaMetadataCompat.Builder();
+
+        builder.putString(MediaMetadataCompat.METADATA_KEY_TITLE, m_Title);
+        builder.putLong(MediaMetadataCompat.METADATA_KEY_DURATION, m_Duration);
+        builder.putBitmap(METADATA_KEY_DISPLAY_ICON, m_Icon);
+        if (m_Advertisement)
+            builder.putLong(EXTRA_METADATA_ADVERTISEMENT, 1);
+
+        return sendCustomAction(MEDIA_METADATA_COMPAT, builder.build());
     }
 
     private boolean sendCustomAction(String action, Parcelable value)
@@ -167,23 +176,28 @@ class CarMediaBrowser
     {
         if (!isConnected())
             return false;
-        m_MediaBrowserCompat.sendCustomAction(action, extras, null);
+
+        if (m_MediaBrowserCompat != null)
+            m_MediaBrowserCompat.sendCustomAction(action, extras, null);
+
         return true;
     }
 
     private void connect()
     {
-        m_MediaBrowserCompat.connect();
+        if (m_MediaBrowserCompat != null)
+            m_MediaBrowserCompat.connect();
     }
 
     private void disconnect()
     {
-        m_MediaBrowserCompat.disconnect();
+        if (m_MediaBrowserCompat != null)
+            m_MediaBrowserCompat.disconnect();
     }
 
     private boolean isConnected()
     {
-        return m_MediaBrowserCompat.isConnected();
+        return m_MediaBrowserCompat != null && m_MediaBrowserCompat.isConnected();
     }
 
     class CarCarMediaBrowserCallback extends MediaBrowserCompat.ConnectionCallback
@@ -194,7 +208,7 @@ class CarMediaBrowser
         {
             try
             {
-                if (m_MediaBrowserCompat != null)
+                if (m_MediaBrowserCompat != null && m_Context != null)
                 {
                     m_MediaControllerCompat = new MediaControllerCompat(m_Context, m_MediaBrowserCompat.getSessionToken());
                     m_MediaControllerCompat.registerCallback(new MediaControllerCompat.Callback()

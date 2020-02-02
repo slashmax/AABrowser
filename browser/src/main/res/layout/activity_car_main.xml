@@ -2,7 +2,7 @@
 <com.github.slashmax.aabrowser.CarFrameLayout
     xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
-    android:id="@+id/m_AAFrameLayout"
+    android:id="@+id/m_CarFrameLayout"
     android:layout_width="match_parent"
     android:layout_height="match_parent">
 
@@ -24,29 +24,40 @@
                 app:layout_scrollFlags="scroll|enterAlways|snap">
 
                 <ImageButton
+                    android:id="@+id/m_BookmarksShowButton"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:src="@drawable/ic_star_border_black_24dp"
+                    android:visibility="visible"/>
+
+                <ImageButton
                     android:id="@+id/m_BackButton"
                     android:layout_width="wrap_content"
-                    android:layout_height="match_parent"
+                    android:layout_height="wrap_content"
                     android:src="@drawable/ic_arrow_back_black_24dp"
                     android:visibility="visible"/>
+
                 <ImageButton
                     android:id="@+id/m_ForwardButton"
                     android:layout_width="wrap_content"
-                    android:layout_height="match_parent"
+                    android:layout_height="wrap_content"
                     android:src="@drawable/ic_arrow_forward_black_24dp"
                     android:visibility="gone"/>
+
                 <ImageButton
                     android:id="@+id/m_ReloadButton"
                     android:layout_width="wrap_content"
-                    android:layout_height="match_parent"
+                    android:layout_height="wrap_content"
                     android:src="@drawable/ic_refresh_black_24dp"
                     android:visibility="visible"/>
+
                 <ImageButton
                     android:id="@+id/m_HomeButton"
                     android:layout_width="wrap_content"
-                    android:layout_height="match_parent"
+                    android:layout_height="wrap_content"
                     android:src="@drawable/ic_home_black_24dp"
                     android:visibility="visible"/>
+
                 <com.github.slashmax.aabrowser.CarEditText
                     android:id="@+id/m_UrlEditText"
                     android:layout_width="0dp"
@@ -59,18 +70,6 @@
                     android:focusable="true"
                     android:focusableInTouchMode="true"
                     android:visibility="visible"/>
-                <ImageButton
-                    android:id="@+id/m_DesktopButton"
-                    android:layout_width="wrap_content"
-                    android:layout_height="match_parent"
-                    android:src="@drawable/ic_desktop_windows_black_24dp"
-                    android:visibility="visible"/>
-                <ImageButton
-                    android:id="@+id/m_LogButton"
-                    android:layout_width="wrap_content"
-                    android:layout_height="match_parent"
-                    android:src="@drawable/ic_chat_black_24dp"
-                    android:visibility="gone"/>
 
             </LinearLayout>
 
@@ -97,7 +96,77 @@
         android:id="@+id/m_CustomViewGroup"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
-        android:background="@android:color/black"
+        android:background="@android:color/background_dark"
         android:visibility="invisible"/>
+
+    <LinearLayout
+        android:id="@+id/m_BookmarksLayout"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:orientation="vertical"
+        android:background="@android:color/background_dark"
+        android:visibility="invisible">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal">
+
+            <ImageButton
+                android:id="@+id/m_BookmarksHideButton"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:src="@drawable/ic_arrow_back_black_24dp"
+                android:visibility="visible"/>
+
+            <ImageButton
+                android:id="@+id/m_BookmarksAddButton"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:src="@drawable/ic_add_black_24dp"
+                android:visibility="visible"/>
+
+            <ImageButton
+                android:id="@+id/m_BookmarksRemoveButton"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:src="@drawable/ic_remove_black_24dp"
+                android:visibility="gone"/>
+
+            <Space
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"/>
+
+            <ImageButton
+                android:id="@+id/m_DesktopButton"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:src="@drawable/ic_desktop_windows_black_24dp"
+                android:visibility="visible"/>
+
+            <ImageButton
+                android:id="@+id/m_AdpSettingsButton"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:src="@drawable/ic_block_black_24dp"
+                android:visibility="gone"/>
+
+            <ImageButton
+                android:id="@+id/m_LogButton"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:src="@drawable/ic_chat_black_24dp"
+                android:visibility="gone"/>
+
+        </LinearLayout>
+
+        <androidx.recyclerview.widget.RecyclerView
+            android:id="@+id/m_RecyclerView"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:scrollbars="vertical"/>
+
+    </LinearLayout>
 
 </com.github.slashmax.aabrowser.CarFrameLayout>

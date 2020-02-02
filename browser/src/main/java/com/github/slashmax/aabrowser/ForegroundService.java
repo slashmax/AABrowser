@@ -11,15 +11,13 @@ import android.os.IBinder;
 import androidx.core.app.NotificationCompat;
 import android.util.Log;
 
+import static android.content.pm.ServiceInfo.FOREGROUND_SERVICE_TYPE_MANIFEST;
+
 public class ForegroundService extends Service
 {
     private static final String TAG = "ForegroundService";
     private static final String CHANNEL_ID = "com.github.slashmax.aabrowser";
     private static final int    ONGOING_NOTIFICATION_ID = 1;
-
-    public ForegroundService()
-    {
-    }
 
     @Override
     public void onCreate()
@@ -81,7 +79,10 @@ public class ForegroundService extends Service
                     .setContentIntent(pendingIntent)
                     .setShowWhen(true);
 
-            startForeground(ONGOING_NOTIFICATION_ID, builder.build());
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q)
+                startForeground(ONGOING_NOTIFICATION_ID, builder.build(), FOREGROUND_SERVICE_TYPE_MANIFEST);
+            else
+                startForeground(ONGOING_NOTIFICATION_ID, builder.build());
         }
         catch (Exception e)
         {

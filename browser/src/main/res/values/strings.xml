@@ -5,4 +5,6 @@
     <string name="notification_channel_description">Android Auto Browser Notification</string>
     <string name="notification_title">AA Browser running</string>
     <string name="notification_text">Tap to stop</string>
+
+    <string name="settings_name">Settings</string>
 </resources>

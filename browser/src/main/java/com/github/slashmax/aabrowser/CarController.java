@@ -9,8 +9,11 @@ import android.util.Log;
 
 import com.google.android.apps.auto.sdk.CarUiController;
 import com.google.android.apps.auto.sdk.DayNightStyle;
+import com.google.android.apps.auto.sdk.MenuController;
 import com.google.android.apps.auto.sdk.SearchCallback;
+import com.google.android.apps.auto.sdk.SearchController;
 import com.google.android.apps.auto.sdk.SearchItem;
+import com.google.android.apps.auto.sdk.StatusBarController;
 
 import static android.media.AudioManager.AUDIOFOCUS_GAIN;
 import static android.support.car.media.CarAudioManager.CAR_AUDIO_USAGE_DEFAULT;
@@ -37,50 +40,73 @@ class CarController
                 AbandonAudioFocus();
             }
         });
-        m_Car.connect();
+        if (m_Car != null)
+            m_Car.connect();
     }
 
     void onDestroy()
     {
-        if (m_Car.isConnected())
-            m_Car.disconnect();
+        if (m_Car != null)
+        {
+            if (m_Car.isConnected())
+                m_Car.disconnect();
+            m_Car = null;
+        }
     }
 
     void InitCarUiController(CarUiController controller)
     {
-        controller.getStatusBarController().setTitle("");
-        controller.getStatusBarController().hideAppHeader();
-        controller.getStatusBarController().setAppBarAlpha(0.0f);
-        controller.getStatusBarController().setAppBarBackgroundColor(Color.WHITE);
-        controller.getStatusBarController().setDayNightStyle(DayNightStyle.AUTO);
-        controller.getMenuController().hideMenuButton();
-
-        controller.getSearchController().setSearchCallback(new SearchCallback()
+        if (controller != null)
         {
-            @Override
-            public void onSearchItemSelected(SearchItem searchItem)
+            StatusBarController statusBarController = controller.getStatusBarController();
+            if (statusBarController != null)
             {
+                statusBarController.setTitle("");
+                statusBarController.hideAppHeader();
+                statusBarController.setAppBarAlpha(0.0f);
+                statusBarController.setAppBarBackgroundColor(Color.WHITE);
+                statusBarController.setDayNightStyle(DayNightStyle.AUTO);
             }
 
-            @Override
-            public boolean onSearchSubmitted(String s)
-            {
-                return true;
-            }
+            MenuController menuController = controller.getMenuController();
+            if (menuController != null)
+                menuController.hideMenuButton();
 
-            @Override
-            public void onSearchTextChanged(String s)
+            SearchController searchController = controller.getSearchController();
+            if (searchController != null)
             {
+                searchController.setSearchCallback(new SearchCallback()
+                {
+                    @Override
+                    public void onSearchItemSelected(SearchItem searchItem)
+                    {
+                    }
+
+                    @Override
+                    public boolean onSearchSubmitted(String s)
+                    {
+                        return true;
+                    }
+
+                    @Override
+                    public void onSearchTextChanged(String s)
+                    {
+                    }
+                });
             }
-        });
+        }
     }
 
     private void RequestAudioFocus()
     {
         try
         {
-            CarAudioManager carAM = m_Car.getCarManager(CarAudioManager.class);
-            carAM.requestAudioFocus(null, carAM.getAudioAttributesForCarUsage(CAR_AUDIO_USAGE_DEFAULT), AUDIOFOCUS_GAIN, 0);
+            if (m_Car != null)
+            {
+                CarAudioManager carAM = m_Car.getCarManager(CarAudioManager.class);
+                if (carAM != null)
+                    carAM.requestAudioFocus(null, carAM.getAudioAttributesForCarUsage(CAR_AUDIO_USAGE_DEFAULT), AUDIOFOCUS_GAIN, 0);
+            }
         }
         catch (Exception e)
         {
@@ -92,8 +118,12 @@ class CarController
     {
         try
         {
-            CarAudioManager carAM = m_Car.getCarManager(CarAudioManager.class);
-            carAM.abandonAudioFocus(null, carAM.getAudioAttributesForCarUsage(CAR_AUDIO_USAGE_DEFAULT));
+            if (m_Car != null)
+            {
+                CarAudioManager carAM = m_Car.getCarManager(CarAudioManager.class);
+                if (carAM != null)
+                    carAM.abandonAudioFocus(null, carAM.getAudioAttributesForCarUsage(CAR_AUDIO_USAGE_DEFAULT));
+            }
         }
         catch (Exception e)
         {

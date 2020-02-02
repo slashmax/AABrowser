@@ -2,6 +2,7 @@ package com.github.slashmax.aabrowser;
 
 import android.annotation.SuppressLint;
 import android.content.Context;
+import android.content.Intent;
 import android.content.SharedPreferences;
 import android.graphics.Bitmap;
 import android.graphics.Rect;
@@ -9,6 +10,12 @@ import android.os.Build;
 import android.preference.PreferenceManager;
 import com.google.android.material.appbar.AppBarLayout;
 import android.support.v4.media.session.MediaSessionCompat;
+
+import androidx.annotation.NonNull;
+import androidx.recyclerview.widget.DividerItemDecoration;
+import androidx.recyclerview.widget.ItemTouchHelper;
+import androidx.recyclerview.widget.LinearLayoutManager;
+import androidx.recyclerview.widget.RecyclerView;
 import androidx.swiperefreshlayout.widget.SwipeRefreshLayout;
 import android.util.AttributeSet;
 import android.util.Log;
@@ -17,16 +24,22 @@ import android.view.MotionEvent;
 import android.view.View;
 import android.view.ViewGroup;
 import android.webkit.JavascriptInterface;
+import android.webkit.PermissionRequest;
+import android.webkit.URLUtil;
 import android.webkit.WebChromeClient;
 import android.webkit.WebView;
 import android.webkit.WebViewClient;
 import android.widget.ImageButton;
+import android.widget.LinearLayout;
 import android.widget.TextView;
+
+import org.adblockplus.libadblockplus.android.settings.AdblockHelper;
 
 import java.io.BufferedReader;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 
+import static android.content.Intent.FLAG_ACTIVITY_NEW_TASK;
 import static android.graphics.Bitmap.Config.ALPHA_8;
 import static android.support.v4.media.session.PlaybackStateCompat.STATE_PAUSED;
 import static android.support.v4.media.session.PlaybackStateCompat.STATE_PLAYING;
@@ -39,35 +52,47 @@ public class CarWebView
         Runnable,
         View.OnClickListener,
         TextView.OnEditorActionListener,
-        SwipeRefreshLayout.OnRefreshListener
+        SwipeRefreshLayout.OnRefreshListener,
+        BookmarksAdapter.OnBookmarkListener
 {
     private static final String TAG = "CarWebView";
 
-    private static final String DEFAULT_HOME = "https://www.google.com";
-    private static final String DEFAULT_SEARCH = "https://www.google.com/search?q=";
+    private static final String DEFAULT_HOME    = "https://www.google.com";
+    private static final String DEFAULT_SEARCH  = "https://www.google.com/search?q=";
 
     private boolean                     m_Moved;
 
     private CarInputManager             m_CarInputManager;
+    private BookmarksAdapter            m_BookmarksAdapter;
 
     private CarFrameLayout              m_CarFrameLayout;
+
     private AppBarLayout                m_AppBarLayout;
     private SwipeRefreshLayout          m_SwipeRefreshLayout;
     private ViewGroup                   m_CustomViewGroup;
+    private LinearLayout                m_BookmarksLayout;
+    private RecyclerView                m_RecyclerView;
 
-    private View                        m_CustomView;
-
+    private ImageButton                 m_BookmarksShowButton;
     private ImageButton                 m_BackButton;
     private ImageButton                 m_ForwardButton;
     private ImageButton                 m_ReloadButton;
     private ImageButton                 m_HomeButton;
-    private ImageButton                 m_DesktopButton;
-    private ImageButton                 m_LogButton;
+
     private CarEditText                 m_UrlEditText;
+
+    private ImageButton                 m_BookmarksHideButton;
+    private ImageButton                 m_BookmarksAddButton;
+    private ImageButton                 m_BookmarksRemoveButton;
+    private ImageButton                 m_DesktopButton;
+    private ImageButton                 m_AdpSettingsButton;
+    private ImageButton                 m_LogButton;
+
+    private View                                m_CustomView;
+    private WebChromeClient.CustomViewCallback  m_CustomViewCallback;
+
     private long                        m_MediaPrevTimestamp;
 
-    private WebChromeClient             m_WebChromeClient;
-    private WebViewClient               m_WebViewClient;
     private Bitmap                      m_DefaultVideoPoster;
 
     private String                      m_HomeUrl;
@@ -82,8 +107,6 @@ public class CarWebView
     private CarMediaBrowser             m_CarMediaBrowser;
 
     private String                      m_JsScript;
-
-    private static String               m_Log;
 
     public CarWebView(Context context)
     {
@@ -100,94 +123,41 @@ public class CarWebView
         super(context, attrs, defStyleAttr);
     }
 
-    public void setAAFrameLayout(CarFrameLayout frameLayout)
-    {
-        m_CarFrameLayout = frameLayout;
-    }
-
     public void setInputManager(CarInputManager inputManager)
     {
         m_CarInputManager = inputManager;
     }
 
-    public void setMetadataAdvertisement(long val)
+    public void setCarFrameLayout(CarFrameLayout frameLayout)
+    {
+        m_CarFrameLayout = frameLayout;
+    }
+
+    public void setMetadataAdvertisement(boolean advertisement)
     {
         if (m_CarMediaBrowser != null)
-            m_CarMediaBrowser.setMetadataAdvertisement(val);
+            m_CarMediaBrowser.setMetadataAdvertisement(advertisement);
     }
 
     @SuppressLint("setJavaScriptEnabled")
     public void onCreate()
     {
-        m_DefaultVideoPoster = Bitmap.createBitmap(1, 1, ALPHA_8);
-        m_Log = "";
+        setProvider(AdblockHelper.get().getProvider());
+        setFocusable(true);
+        setFocusableInTouchMode(true);
 
-        InitWebChromeClient();
-        InitWebViewClient();
+        m_Moved = false;
+        m_JsScript = readJavaScript(R.raw.media_functions);
 
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O)
-            getSettings().setOffscreenPreRaster(true);
+        m_BookmarksAdapter = new BookmarksAdapter();
+        m_BookmarksAdapter.setContext(getContext());
+        m_BookmarksAdapter.setListener(this);
+        m_BookmarksAdapter.onCreate();
 
-//        setWebContentsDebuggingEnabled(true);
-        getSettings().setJavaScriptEnabled(true);
-
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP)
-            getSettings().setMixedContentMode(MIXED_CONTENT_COMPATIBILITY_MODE);
-
-        getSettings().setUseWideViewPort(true);
-        getSettings().setLoadWithOverviewMode(true);
-        getSettings().setLoadsImagesAutomatically(true);
-        getSettings().setMediaPlaybackRequiresUserGesture(false);
-
-        getSettings().setSupportZoom(true);
-        getSettings().setBuiltInZoomControls(true);
-        getSettings().setDisplayZoomControls(false);
-
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O)
-            setRendererPriorityPolicy(RENDERER_PRIORITY_IMPORTANT, false);
-
-        setWebChromeClient(m_WebChromeClient);
-        setWebViewClient(m_WebViewClient);
-
-        m_UserAgentString = getSettings().getUserAgentString();
-        m_DesktopUserAgentString = BuildDesktopUserAgentString(m_UserAgentString);
-
-        Log(TAG, m_UserAgentString);
-        Log(TAG, m_DesktopUserAgentString);
-
-        if (m_CarFrameLayout != null)
-        {
-            m_AppBarLayout = m_CarFrameLayout.findViewById(R.id.m_AppBarLayout);
-            m_SwipeRefreshLayout = m_CarFrameLayout.findViewById(R.id.m_SwipeRefreshLayout);
-            m_CustomViewGroup = m_CarFrameLayout.findViewById(R.id.m_CustomViewGroup);
-        }
-
-        if (m_AppBarLayout != null)
-        {
-            m_BackButton = m_AppBarLayout.findViewById(R.id.m_BackButton);
-            m_ForwardButton = m_AppBarLayout.findViewById(R.id.m_ForwardButton);
-            m_ReloadButton = m_AppBarLayout.findViewById(R.id.m_ReloadButton);
-            m_HomeButton = m_AppBarLayout.findViewById(R.id.m_HomeButton);
-            m_DesktopButton = m_AppBarLayout.findViewById(R.id.m_DesktopButton);
-            m_LogButton = m_AppBarLayout.findViewById(R.id.m_LogButton);
-
-            if (m_BackButton != null) m_BackButton.setOnClickListener(this);
-            if (m_ForwardButton != null) m_ForwardButton.setOnClickListener(this);
-            if (m_ReloadButton != null) m_ReloadButton.setOnClickListener(this);
-            if (m_HomeButton != null) m_HomeButton.setOnClickListener(this);
-            if (m_DesktopButton != null) m_DesktopButton.setOnClickListener(this);
-            if (m_LogButton != null) m_LogButton.setOnClickListener(this);
-
-            m_UrlEditText = m_AppBarLayout.findViewById(R.id.m_UrlEditText);
-            if (m_UrlEditText != null)
-            {
-                m_UrlEditText.setInputManager(m_CarInputManager);
-                m_UrlEditText.setOnEditorActionListener(this);
-            }
-        }
-
-        if (m_SwipeRefreshLayout != null)
-            m_SwipeRefreshLayout.setOnRefreshListener(this);
+        m_CarMediaBrowser = new CarMediaBrowser();
+        m_CarMediaBrowser.setContext(getContext());
+        m_CarMediaBrowser.setCallback(new MediaSessionCallback());
+        m_CarMediaBrowser.onCreate();
 
         m_AppBarLayoutHider = new Runnable()
         {
@@ -199,21 +169,48 @@ public class CarWebView
             }
         };
 
-        m_CarMediaBrowser = new CarMediaBrowser(getContext(), new MediaSessionCallback());
-        m_CarMediaBrowser.onCreate();
-
-        addJavascriptInterface(new JavaScriptMediaCallbacks(), "m_JavaScriptMediaCallbacks");
-        m_JsScript = readJavaScript(R.raw.media_functions);
-        mediaFunctions();
-
+        InitUi();
+        InitWebView();
         LoadSharedPreferences();
-        goLast();
     }
 
     public void onDestroy()
     {
+        mediaPause();
+        onPause();
         SaveSharedPreferences();
-        m_CarMediaBrowser.onDestroy();
+        if (m_CarMediaBrowser != null)
+            m_CarMediaBrowser.onDestroy();
+
+        m_BookmarksAdapter.setListener(null);
+        m_BookmarksAdapter.onDestroy();
+
+        dispose(null);
+
+        m_CarInputManager = null;
+        m_BookmarksAdapter = null;
+        m_CarFrameLayout = null;
+        m_AppBarLayout = null;
+        m_SwipeRefreshLayout = null;
+        m_CustomViewGroup = null;
+        m_BookmarksLayout = null;
+        m_RecyclerView = null;
+        m_BookmarksShowButton = null;
+        m_BackButton = null;
+        m_ForwardButton = null;
+        m_ReloadButton = null;
+        m_HomeButton = null;
+        m_UrlEditText = null;
+        m_BookmarksHideButton = null;
+        m_BookmarksAddButton = null;
+        m_BookmarksRemoveButton = null;
+        m_DesktopButton = null;
+        m_AdpSettingsButton = null;
+        m_LogButton = null;
+        m_CustomView = null;
+        m_CustomViewCallback = null;
+        m_AppBarLayoutHider = null;
+        m_CarMediaBrowser = null;
     }
 
     @SuppressLint("ClickableViewAccessibility")
@@ -265,12 +262,17 @@ public class CarWebView
     {
         switch (v.getId())
         {
-            case R.id.m_BackButton:     goBack();break;
-            case R.id.m_ForwardButton:  goForward();break;
-            case R.id.m_ReloadButton:   reload();break;
-            case R.id.m_HomeButton:     goHome();break;
-            case R.id.m_DesktopButton:  toggleDesktopMode();break;
-            case R.id.m_LogButton:      showLog();break;
+            case R.id.m_BookmarksShowButton:    showBookmarks();break;
+            case R.id.m_BackButton:             goBack();break;
+            case R.id.m_ForwardButton:          goForward();break;
+            case R.id.m_ReloadButton:           reload();break;
+            case R.id.m_HomeButton:             goHome();break;
+            case R.id.m_BookmarksHideButton:    hideBookmarks();break;
+            case R.id.m_BookmarksAddButton:     addBookmark();break;
+            case R.id.m_BookmarksRemoveButton:  removeBookmark();break;
+            case R.id.m_DesktopButton:          toggleDesktopMode();break;
+            case R.id.m_AdpSettingsButton:      showAdpSettings();break;
+            case R.id.m_LogButton:              showLog();break;
         }
         refreshAppBar();
         removeHideAppBar();
@@ -279,9 +281,8 @@ public class CarWebView
 
     public void goUrl(String url)
     {
-        if (!url.startsWith("https://"))
-            url = "https://" + url;
-        loadUrl(url);
+        if (url != null)
+            loadUrl(url);
         removeHideAppBar();
     }
 
@@ -306,24 +307,84 @@ public class CarWebView
 
     String BuildDesktopUserAgentString(String agent)
     {
-        return agent.replace("Android", "").replace("Mobile", "").replace("wv", "");
+        return agent
+                .replace("Android", "X11;")
+                .replace("Mobile", "")
+                .replace("wv", "")
+                .replace("Version/4.0", "");
     }
 
-    public void showLog()
+    public boolean onBackPressed()
     {
-        loadData(m_Log, "text/html", "");
+        if (m_BookmarksLayout != null && m_BookmarksLayout.getVisibility() == VISIBLE)
+        {
+            hideBookmarks();
+            return true;
+        }
+        if (m_CustomViewCallback != null)
+        {
+            m_CustomViewCallback.onCustomViewHidden();
+            return true;
+        }
+        if (canGoBack())
+        {
+            goBack();
+            return true;
+        }
+        return false;
     }
 
-    public static void Log(String tag, String msg)
+    void showBookmarks()
     {
-        Log.d(tag, msg);
-        m_Log = m_Log + tag + ": " + msg + "<br>\n";
+        if (m_BookmarksLayout != null)
+        {
+            m_BookmarksLayout.bringToFront();
+            m_BookmarksLayout.setVisibility(VISIBLE);
+        }
+    }
+
+    void hideBookmarks()
+    {
+        if (m_BookmarksAdapter != null)
+            m_BookmarksAdapter.SaveBookmarks();
+
+        if (m_BookmarksLayout != null)
+        {
+            m_BookmarksLayout.setVisibility(INVISIBLE);
+        }
+    }
+
+    void addBookmark()
+    {
+        m_BookmarksAdapter.Add(getTitle(), getUrl());
+    }
+
+    void removeBookmark()
+    {
+        m_BookmarksAdapter.Remove(getUrl());
+    }
+
+    void enableAdbSettings()
+    {
+        if (m_AdpSettingsButton != null)
+            m_AdpSettingsButton.setVisibility(VISIBLE);
+    }
+
+    void showAdpSettings()
+    {
+        Intent intent = new Intent(getContext(), SettingsActivity.class);
+        intent.setFlags(FLAG_ACTIVITY_NEW_TASK);
+        getContext().startActivity(intent);
+    }
+
+    void showLog()
+    {
+        loadData("", "text/html", "");
     }
 
     public void toggleDesktopMode()
     {
         SetDesktopMode(!m_DesktopUserAgent);
-        reload();
     }
 
     public void SetDesktopMode(boolean desktopMode)
@@ -357,7 +418,8 @@ public class CarWebView
 
     private void InitWebChromeClient()
     {
-        m_WebChromeClient = new WebChromeClient()
+        m_DefaultVideoPoster = Bitmap.createBitmap(256, 256, ALPHA_8);
+        WebChromeClient webChromeClient = new WebChromeClient()
         {
             @Override
             public void onProgressChanged(WebView view, int newProgress)
@@ -375,7 +437,8 @@ public class CarWebView
                 if (m_LastUrl == null || !m_LastUrl.equals(getUrl()))
                     SaveSharedPreferences();
 
-                m_CarMediaBrowser.setPlaybackTitle(title);
+                if (m_CarMediaBrowser != null)
+                    m_CarMediaBrowser.setPlaybackTitle(title);
                 refreshAppBar();
                 mediaFunctions();
             }
@@ -383,7 +446,8 @@ public class CarWebView
             @Override
             public void onReceivedIcon(WebView view, Bitmap icon)
             {
-                m_CarMediaBrowser.setPlaybackIcon(icon, false);
+                if (m_CarMediaBrowser != null)
+                    m_CarMediaBrowser.setPlaybackIcon(icon, false);
                 super.onReceivedIcon(view, icon);
             }
 
@@ -391,6 +455,7 @@ public class CarWebView
             public void onShowCustomView(View view, CustomViewCallback callback)
             {
                 m_CustomView = view;
+                m_CustomViewCallback = callback;
                 if (m_CustomViewGroup != null && m_CustomView != null)
                 {
                     m_CustomViewGroup.addView(m_CustomView);
@@ -410,8 +475,24 @@ public class CarWebView
                         m_CustomViewGroup.removeView(m_CustomView);
                         m_CustomViewGroup.removeAllViews();
                     }
-                    m_CustomView = null;
                 }
+                m_CustomView = null;
+                m_CustomViewCallback = null;
+            }
+
+            @Override
+            public void onPermissionRequest(PermissionRequest request)
+            {
+                String[] resources = request.getResources();
+                for (int i = 0; i < resources.length; i++)
+                {
+                    if (PermissionRequest.RESOURCE_PROTECTED_MEDIA_ID.equals(resources[i]))
+                    {
+                        request.grant(new String[] {PermissionRequest.RESOURCE_PROTECTED_MEDIA_ID});
+                        return;
+                    }
+                }
+                super.onPermissionRequest(request);
             }
 
             @Override
@@ -420,11 +501,13 @@ public class CarWebView
                 return m_DefaultVideoPoster;
             }
         };
+
+        setWebChromeClient(webChromeClient);
     }
 
     private void InitWebViewClient()
     {
-        m_WebViewClient = new WebViewClient()
+        WebViewClient webViewClient = new WebViewClient()
         {
             @Override
             public void onPageStarted(WebView view, String url, Bitmap favicon)
@@ -435,7 +518,8 @@ public class CarWebView
                 if (m_SwipeRefreshLayout != null)
                     m_SwipeRefreshLayout.setRefreshing(true);
 
-                m_CarMediaBrowser.setPlaybackIcon(favicon, true);
+                if (m_CarMediaBrowser != null)
+                    m_CarMediaBrowser.setPlaybackIcon(favicon, true);
                 mediaFunctions();
                 requestFocus();
             }
@@ -453,16 +537,131 @@ public class CarWebView
                 requestFocus();
             }
         };
+        setWebViewClient(webViewClient);
+    }
+
+    @SuppressLint("SetJavaScriptEnabled")
+    private void InitWebView()
+    {
+        getSettings().setJavaScriptEnabled(true);
+        getSettings().setUseWideViewPort(true);
+        getSettings().setLoadWithOverviewMode(true);
+        getSettings().setLoadsImagesAutomatically(true);
+        getSettings().setMediaPlaybackRequiresUserGesture(false);
+
+        getSettings().setSupportZoom(true);
+        getSettings().setBuiltInZoomControls(true);
+        getSettings().setDisplayZoomControls(false);
+
+        getSettings().setAllowContentAccess(true);
+        getSettings().setAllowFileAccess(true);
+        getSettings().setDomStorageEnabled(true);
+
+        InitWebChromeClient();
+        InitWebViewClient();
+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O)
+        {
+            getSettings().setOffscreenPreRaster(true);
+            setRendererPriorityPolicy(RENDERER_PRIORITY_IMPORTANT, false);
+        }
+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP)
+        {
+            getSettings().setMixedContentMode(MIXED_CONTENT_COMPATIBILITY_MODE);
+        }
+
+        m_UserAgentString = getSettings().getUserAgentString();
+        m_DesktopUserAgentString = BuildDesktopUserAgentString(m_UserAgentString);
+
+        addJavascriptInterface(new JavaScriptMediaCallbacks(), "m_JavaScriptMediaCallbacks");
+        mediaFunctions();
+    }
+
+    private void InitUi()
+    {
+        if (m_CarFrameLayout != null)
+        {
+            m_AppBarLayout          = m_CarFrameLayout.findViewById(R.id.m_AppBarLayout);
+            m_SwipeRefreshLayout    = m_CarFrameLayout.findViewById(R.id.m_SwipeRefreshLayout);
+            m_CustomViewGroup       = m_CarFrameLayout.findViewById(R.id.m_CustomViewGroup);
+            m_BookmarksLayout       = m_CarFrameLayout.findViewById(R.id.m_BookmarksLayout);
+            m_RecyclerView          = m_CarFrameLayout.findViewById(R.id.m_RecyclerView);
+
+            m_BookmarksShowButton   = m_CarFrameLayout.findViewById(R.id.m_BookmarksShowButton);
+            m_BackButton            = m_CarFrameLayout.findViewById(R.id.m_BackButton);
+            m_ForwardButton         = m_CarFrameLayout.findViewById(R.id.m_ForwardButton);
+            m_ReloadButton          = m_CarFrameLayout.findViewById(R.id.m_ReloadButton);
+            m_HomeButton            = m_CarFrameLayout.findViewById(R.id.m_HomeButton);
+            m_BookmarksHideButton   = m_CarFrameLayout.findViewById(R.id.m_BookmarksHideButton);
+            m_BookmarksAddButton    = m_CarFrameLayout.findViewById(R.id.m_BookmarksAddButton);
+            m_BookmarksRemoveButton = m_CarFrameLayout.findViewById(R.id.m_BookmarksRemoveButton);
+            m_DesktopButton         = m_CarFrameLayout.findViewById(R.id.m_DesktopButton);
+            m_AdpSettingsButton     = m_CarFrameLayout.findViewById(R.id.m_AdpSettingsButton);
+            m_LogButton             = m_CarFrameLayout.findViewById(R.id.m_LogButton);
+
+            m_UrlEditText           = m_CarFrameLayout.findViewById(R.id.m_UrlEditText);
+        }
+
+        if (m_RecyclerView != null)
+        {
+            m_RecyclerView.setLayoutManager(new LinearLayoutManager(getContext()));
+            m_RecyclerView.addItemDecoration(new DividerItemDecoration(getContext(), DividerItemDecoration.VERTICAL));
+
+            new ItemTouchHelper(new ItemTouchHelper.SimpleCallback(ItemTouchHelper.UP | ItemTouchHelper.DOWN, ItemTouchHelper.RIGHT)
+            {
+                @Override
+                public boolean onMove(@NonNull RecyclerView recyclerView, @NonNull RecyclerView.ViewHolder viewHolder, @NonNull RecyclerView.ViewHolder target)
+                {
+                    final int fromPos = viewHolder.getAdapterPosition();
+                    final int toPos = target.getAdapterPosition();
+                    m_BookmarksAdapter.Move(fromPos, toPos);
+                    return true;
+                }
+
+                @Override
+                public void onSwiped(@NonNull RecyclerView.ViewHolder viewHolder, int direction)
+                {
+                    if (direction == ItemTouchHelper.RIGHT)
+                        m_BookmarksAdapter.Remove(viewHolder.getAdapterPosition());
+                }
+            }).attachToRecyclerView(m_RecyclerView);
+
+            m_RecyclerView.setAdapter(m_BookmarksAdapter);
+        }
+
+        if (m_BookmarksShowButton != null)      m_BookmarksShowButton.setOnClickListener(this);
+        if (m_BackButton != null)               m_BackButton.setOnClickListener(this);
+        if (m_ForwardButton != null)            m_ForwardButton.setOnClickListener(this);
+        if (m_ReloadButton != null)             m_ReloadButton.setOnClickListener(this);
+        if (m_HomeButton != null)               m_HomeButton.setOnClickListener(this);
+        if (m_BookmarksHideButton != null)      m_BookmarksHideButton.setOnClickListener(this);
+        if (m_BookmarksAddButton != null)       m_BookmarksAddButton.setOnClickListener(this);
+        if (m_BookmarksRemoveButton != null)    m_BookmarksRemoveButton.setOnClickListener(this);
+        if (m_DesktopButton != null)            m_DesktopButton.setOnClickListener(this);
+        if (m_AdpSettingsButton != null)        m_AdpSettingsButton.setOnClickListener(this);
+        if (m_LogButton != null)                m_LogButton.setOnClickListener(this);
+
+        if (m_UrlEditText != null)
+        {
+            m_UrlEditText.setInputManager(m_CarInputManager);
+            m_UrlEditText.setOnEditorActionListener(this);
+        }
+
+        if (m_SwipeRefreshLayout != null)
+            m_SwipeRefreshLayout.setOnRefreshListener(this);
     }
 
     private void postHideAppBar()
     {
-        postDelayed(m_AppBarLayoutHider,5000);
+        if (m_AppBarLayoutHider != null)
+            postDelayed(m_AppBarLayoutHider,5000);
     }
 
     private void removeHideAppBar()
     {
-        removeCallbacks(m_AppBarLayoutHider);
+        if (m_AppBarLayoutHider != null)
+            removeCallbacks(m_AppBarLayoutHider);
     }
 
     private void postCheckIsTextEditor()
@@ -489,20 +688,28 @@ public class CarWebView
             stopInput();
     }
 
-    boolean isValidUrl(String url)
-    {
-        return url.contains("://") || url.startsWith("www.") || url.endsWith("/");
-    }
-
     @Override
     public boolean onEditorAction(TextView view, int actionId, KeyEvent event)
     {
-        String url = view.getText().toString();
-        if (isValidUrl(url))
+        String text = view.getText().toString();
+        String url = guessUrl(text);
+
+        if (URLUtil.isValidUrl(url))
             goUrl(url);
         else
-            doSearch(url);
+            doSearch(text);
         return true;
+    }
+
+    String guessUrl(String url)
+    {
+        if (url == null || url.isEmpty() || url.contains("://"))
+            return url;
+
+        if (!url.startsWith("www.") && !url.endsWith("/") && !url.contains("."))
+            return url;
+
+        return "https://" + url;
     }
 
     private void refreshAppBar()
@@ -574,7 +781,7 @@ public class CarWebView
         }
         catch (Exception e)
         {
-            Log(TAG, "readRawResource exception : " + e.toString());
+            Log.d(TAG, "readRawResource exception : " + e.toString());
         }
         return builder.toString();
     }
@@ -594,12 +801,12 @@ public class CarWebView
 
     private void mediaResetEventListener()
     {
-        loadJavaScript("if (typeof mediaResetEventListener === 'function') {mediaResetEventListener();}");
+        loadJavaScript("mediaResetEventListener();");
     }
 
     private void mediaSetEventListener()
     {
-        loadJavaScript("if (typeof mediaSetEventListener === 'function') {mediaSetEventListener();}");
+        loadJavaScript("mediaSetEventListener();");
     }
 
     private void mediaPlay()
@@ -634,36 +841,48 @@ public class CarWebView
         loadJavaScript("mediaSeekToEnd();");
     }
 
+    @Override
+    public void onBookmark(String url)
+    {
+        goUrl(url);
+        hideBookmarks();
+    }
+
     private final class MediaSessionCallback extends MediaSessionCompat.Callback
     {
         @Override
         public void onPlay()
         {
             mediaPlay();
+            mediaFunctions();
         }
 
         @Override
         public void onPause()
         {
             mediaPause();
+            mediaFunctions();
         }
 
         @Override
         public void onStop()
         {
             mediaPause();
+            mediaFunctions();
         }
 
         @Override
         public void onSkipToPrevious()
         {
             mediaSkipToPrev();
+            mediaFunctions();
         }
 
         @Override
         public void onSkipToNext()
         {
             mediaSkipToNext();
+            mediaFunctions();
         }
     }
 
@@ -672,31 +891,36 @@ public class CarWebView
         @JavascriptInterface
         public void onMediaPlay(float time)
         {
-            m_CarMediaBrowser.setPlaybackState(STATE_PLAYING, time);
+            if (m_CarMediaBrowser != null)
+                m_CarMediaBrowser.setPlaybackState(STATE_PLAYING, time);
         }
 
         @JavascriptInterface
         public void onMediaPause(float time)
         {
-            m_CarMediaBrowser.setPlaybackState(STATE_PAUSED, time);
+            if (m_CarMediaBrowser != null)
+                m_CarMediaBrowser.setPlaybackState(STATE_PAUSED, time);
         }
 
         @JavascriptInterface
         public void onMediaStop(float time)
         {
-            m_CarMediaBrowser.setPlaybackState(STATE_PAUSED, time);
+            if (m_CarMediaBrowser != null)
+                m_CarMediaBrowser.setPlaybackState(STATE_PAUSED, time);
         }
 
         @JavascriptInterface
         public void onMediaTimeUpdate(float time)
         {
-            m_CarMediaBrowser.setPlaybackPosition(time);
+            if (m_CarMediaBrowser != null)
+                m_CarMediaBrowser.setPlaybackPosition(time);
         }
 
         @JavascriptInterface
         public void onMediaDurationChange(float duration)
         {
-            m_CarMediaBrowser.setPlaybackDuration(duration);
+            if (m_CarMediaBrowser != null)
+                m_CarMediaBrowser.setPlaybackDuration(duration);
         }
     }
 }

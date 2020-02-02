@@ -8,12 +8,6 @@ function hasMedia()
     return (getMedia() != null);
 }
 
-function isMediaPlaying()
-{
-    var media = getMedia();
-    return (media != null && !isMediaPaused() && !isMediaStopped());
-}
-
 function isMediaPaused()
 {
     var media = getMedia();
@@ -24,6 +18,12 @@ function isMediaStopped()
 {
     var media = getMedia();
     return (media == null || media.ended);
+}
+
+function isMediaPlaying()
+{
+    var media = getMedia();
+    return (media != null && !isMediaPaused() && !isMediaStopped());
 }
 
 function getMediaCurrentTime()
@@ -96,6 +96,14 @@ function setMediaInterval()
     mediaInterval = setInterval(onMediaInterval, 100);
 }
 
+function checkMediaStatus()
+{
+    if (isMediaPlaying())
+        onMediaPlay();
+    else
+        onMediaPause();
+}
+
 function mediaResetEventListener()
 {
     clearMediaInterval();
@@ -123,22 +131,25 @@ function mediaSetEventListener()
         media.addEventListener('durationchange', onMediaDurationChange);
         setMediaInterval();
     }
-    if (isMediaPlaying())
-        onMediaPlay();
-    else
-        onMediaPause();
+    checkMediaStatus();
 }
 
 function mediaPlay()
 {
     var media = getMedia();
-    if (media != null) media.play();
+    if (media != null)
+    {
+        media.play();
+    }
 }
 
 function mediaPause()
 {
     var media = getMedia();
-    if (media != null) media.pause();
+    if (media != null)
+    {
+        media.pause();
+    }
 }
 
 function mediaPlayPause()
@@ -154,7 +165,10 @@ function mediaPlayPause()
 
 function mediaSeekToStart()
 {
-    mediaSeekTo(0);
+    if (hasMedia())
+    {
+        mediaSeekTo(0);
+    }
 }
 
 function mediaSeekToEnd()
